@@ -4,6 +4,9 @@ import type { ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { useCategories, useSeedDefaultCategories } from "@/api/hooks";
 import { useTheme } from "@/contexts/ThemeContext";
+import Lottie from "lottie-react";
+
+import ReactLogo from "@/assets/lottie/ReactLogo.json";
 
 const nav = [
   { to: "/", label: "대시보드", icon: "chart" },
@@ -190,7 +193,9 @@ export function Layout({ children }: LayoutProps) {
           </svg>
         </button>
         <div className="app-nav-brand">
-          <div className="app-nav-brand-icon">F</div>
+          <div className="app-nav-brand-icon">
+            <Lottie animationData={ReactLogo} style={{ width: "100%", height: "100%" }} />
+          </div>
           <span className="app-nav-brand-text">자산관리</span>
           <button
             type="button"
