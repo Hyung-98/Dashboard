@@ -77,8 +77,8 @@ export function Assets() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <h1 style={{ margin: 0 }}>자산 현황</h1>
+      <header className="page-header">
+        <h1>자산 현황</h1>
         <button
           type="button"
           onClick={() => setAddModalOpen(true)}
@@ -94,7 +94,7 @@ export function Assets() {
         >
           자산 추가
         </button>
-      </div>
+      </header>
       <Modal
         open={addModalOpen || editingAsset != null}
         onClose={() => {

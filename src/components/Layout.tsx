@@ -1,17 +1,151 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { useCategories, useSeedDefaultCategories } from "@/api/hooks";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const nav = [
-  { to: "/", label: "대시보드" },
-  { to: "/expenses", label: "지출" },
-  { to: "/incomes", label: "수입" },
-  { to: "/budgets", label: "예산" },
-  { to: "/assets", label: "자산" },
-  { to: "/categories", label: "카테고리" },
+  { to: "/", label: "대시보드", icon: "chart" },
+  { to: "/expenses", label: "지출", icon: "wallet" },
+  { to: "/incomes", label: "수입", icon: "income" },
+  { to: "/budgets", label: "예산", icon: "budget" },
+  { to: "/assets", label: "자산", icon: "asset" },
+  { to: "/categories", label: "카테고리", icon: "category" },
 ];
+
+const pathToTitle: Record<string, string> = {
+  "/": "대시보드",
+  "/dashboard": "대시보드",
+  "/expenses": "지출",
+  "/incomes": "수입",
+  "/budgets": "예산",
+  "/assets": "자산",
+  "/categories": "카테고리",
+};
+
+function getPageTitle(pathname: string): string {
+  return pathToTitle[pathname] ?? "대시보드";
+}
+
+function NavIcon({ name }: { name: string }) {
+  const className = "nav-icon";
+  const stroke = "currentColor";
+  const size = 20;
+  switch (name) {
+    case "chart":
+      return (
+        <svg
+          className={className}
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+        >
+          <path d="M3 3v18h18" />
+          <path d="M18 17V9" />
+          <path d="M13 17V5" />
+          <path d="M8 17v-3" />
+        </svg>
+      );
+    case "wallet":
+      return (
+        <svg
+          className={className}
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+        >
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+          <path d="M1 10h22" />
+        </svg>
+      );
+    case "income":
+      return (
+        <svg
+          className={className}
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+        >
+          <path d="M12 19V5" />
+          <path d="M5 12l7-7 7 7" />
+        </svg>
+      );
+    case "budget":
+      return (
+        <svg
+          className={className}
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+        >
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+          <path d="M16 13H8" />
+          <path d="M16 17H8" />
+          <path d="M10 9H8" />
+        </svg>
+      );
+    case "asset":
+      return (
+        <svg
+          className={className}
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+        >
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        </svg>
+      );
+    case "category":
+      return (
+        <svg
+          className={className}
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+        >
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        </svg>
+      );
+    case "logout":
+      return (
+        <svg
+          className={className}
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+        >
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 interface LayoutProps {
   children: ReactNode;
@@ -19,6 +153,8 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
+  const [navOpen, setNavOpen] = useState(false);
   const { data: categories = [], isSuccess: categoriesLoaded } = useCategories();
   const seedCategories = useSeedDefaultCategories();
   const hasTriedSeed = useRef(false);
@@ -29,49 +165,108 @@ export function Layout({ children }: LayoutProps) {
     seedCategories.mutate();
   }, [categoriesLoaded, categories.length, seedCategories.isPending]);
 
+  const closeNav = () => setNavOpen(false);
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <nav
-        style={{
-          width: 200,
-          padding: "1rem",
-          borderRight: "1px solid #e2e8f0",
-          background: "#fff",
-        }}
-      >
-        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {nav.map(({ to, label }) => (
-            <li key={to} style={{ marginBottom: "0.5rem" }}>
-              <Link
-                to={to}
-                style={{
-                  color: location.pathname === to ? "#0f172a" : "#64748b",
-                  fontWeight: location.pathname === to ? 600 : 400,
-                }}
-              >
+    <div className="app-shell">
+      <div
+        className={`app-nav-backdrop ${navOpen ? "open" : ""}`}
+        onClick={closeNav}
+        onKeyDown={(e) => e.key === "Escape" && closeNav()}
+        role="button"
+        tabIndex={-1}
+        aria-hidden
+      />
+      <nav className={`app-nav ${navOpen ? "open" : ""}`} aria-label="메인 메뉴">
+        <button
+          type="button"
+          className="app-nav-toggle"
+          onClick={() => setNavOpen((o) => !o)}
+          aria-label="메뉴 열기"
+          aria-expanded={navOpen}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <path d="M3 6h18M3 12h18M3 18h18" />
+          </svg>
+        </button>
+        <div className="app-nav-brand">
+          <div className="app-nav-brand-icon">F</div>
+          <span className="app-nav-brand-text">자산관리</span>
+          <button
+            type="button"
+            className="app-nav-close"
+            onClick={() => setNavOpen(false)}
+            aria-label="메뉴 닫기"
+            aria-expanded={navOpen}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+            >
+              <path d="M18 6L6 18" />
+              <path d="M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <ul className="app-nav-list">
+          {nav.map(({ to, label, icon }) => (
+            <li key={to}>
+              <Link to={to} onClick={closeNav} className={location.pathname === to ? "active" : ""}>
+                <NavIcon name={icon} />
                 {label}
               </Link>
             </li>
           ))}
-          <li style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #e2e8f0" }}>
+          <li className="nav-divider">
             <button
               type="button"
-              onClick={() => supabase.auth.signOut()}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                fontSize: "0.875rem",
-                color: "#64748b",
-                cursor: "pointer",
+              onClick={() => {
+                closeNav();
+                supabase.auth.signOut();
               }}
             >
+              <NavIcon name="logout" />
               로그아웃
             </button>
           </li>
         </ul>
       </nav>
-      <main style={{ flex: 1, padding: "1.5rem" }}>{children}</main>
+      <main className="app-main">
+        <header className="app-header">
+          <h2 className="app-header-title">{getPageTitle(location.pathname)}</h2>
+          <div className="app-header-actions">
+            <button
+              type="button"
+              className={`theme-toggle ${theme === "light" ? "active" : ""}`}
+              onClick={toggleTheme}
+              aria-label="라이트 모드"
+              title="라이트 모드"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="5" />
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={`theme-toggle ${theme === "dark" ? "active" : ""}`}
+              onClick={toggleTheme}
+              aria-label="다크 모드"
+              title="다크 모드"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            </button>
+          </div>
+        </header>
+        {children}
+      </main>
     </div>
   );
 }

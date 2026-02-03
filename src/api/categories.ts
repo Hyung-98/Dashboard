@@ -29,19 +29,22 @@ export async function fetchCategories(): Promise<Category[]> {
   return (data ?? []) as Category[];
 }
 
+/** Insert default categories only when they don't exist (by name+type). Categories are global, not per-account. */
 export async function seedDefaultCategories(): Promise<void> {
-  const userId = await getCurrentUserId();
-  if (!userId) throw new Error("로그인이 필요합니다.");
-  const rows = DEFAULT_CATEGORIES.map(({ name, type }) => ({ name, type, user_id: userId }));
-  const { error } = await supabase.from("categories").insert(rows as never);
+  await getCurrentUserId(); // ensure logged in
+  const { data: existing } = await supabase.from("categories").select("name, type");
+  const rows = (existing ?? []) as { name: string; type: string }[];
+  const existingSet = new Set(rows.map((r) => `${r.name}:${r.type}`));
+  const toInsert = DEFAULT_CATEGORIES.filter(({ name, type }) => !existingSet.has(`${name}:${type}`));
+  if (toInsert.length === 0) return;
+  const { error } = await supabase.from("categories").insert(toInsert as never);
   if (error) throw new Error(error.message);
 }
 
+/** Create a global category (no user_id). Duplicate name+type will fail at DB unique constraint. */
 export async function createCategory(payload: Omit<Insertable<"categories">, "id" | "user_id">): Promise<void> {
-  const userId = await getCurrentUserId();
-  if (!userId) throw new Error("로그인이 필요합니다.");
-  const row: Insertable<"categories"> = { ...payload, user_id: userId };
-  const { error } = await supabase.from("categories").insert(row as never);
+  await getCurrentUserId(); // ensure logged in
+  const { error } = await supabase.from("categories").insert(payload as never);
   if (error) throw new Error(error.message);
 }
 

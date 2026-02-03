@@ -28,15 +28,19 @@ import {
   Pie,
   Cell,
   Legend,
+  BarChart,
+  Bar,
 } from "recharts";
 import { useExpenses, useIncomes, useBudgets, useAssets } from "@/api/hooks";
+import { useTheme } from "@/contexts/ThemeContext";
 import { CardSkeleton } from "@/components/ui";
 import { DEFAULT_EXPENSE_FILTERS, DEFAULT_INCOME_FILTERS } from "@/types/filters";
 
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+/* Design system: secondary palette + chart variety */
+const COLORS = ["#4578F9", "#43B430", "#FFBC11", "#ef4444", "#CB3EFF", "#ec4899"];
 
 const SUMMARY_IDS = ["expense", "budget", "income", "asset", "net"] as const;
-const CHART_IDS = ["line", "pie"] as const;
+const CHART_IDS = ["line", "pie", "lineIncome", "pieIncome", "barBudget", "pieAsset"] as const;
 const STORAGE_SUMMARY = "dashboard-summary-order";
 const STORAGE_CHART = "dashboard-chart-order";
 
@@ -66,13 +70,6 @@ function saveOrder(key: string, order: string[]) {
   localStorage.setItem(key, JSON.stringify(order));
 }
 
-const cardStyle = {
-  padding: "1.25rem",
-  background: "#fff",
-  borderRadius: 8,
-  boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-};
-
 function SortableSummaryCard({
   id,
   label,
@@ -88,36 +85,48 @@ function SortableSummaryCard({
     id: `summary-${id}`,
   });
   const style: React.CSSProperties = {
-    ...cardStyle,
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     cursor: "grab",
   };
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <span style={{ fontSize: "0.75rem", color: "#94a3b8", marginRight: 6 }}>⋮⋮</span>
-      <div style={{ fontSize: "0.875rem", color: "#64748b" }}>{label}</div>
-      <div style={{ fontSize: "1.5rem", fontWeight: 600, ...valueStyle }}>{value}</div>
+    <div ref={setNodeRef} className="dashboard-kpi-card" style={style} {...attributes} {...listeners}>
+      <span style={{ fontSize: "0.75rem", marginRight: 6, opacity: 0.7 }} aria-hidden>
+        ⋮⋮
+      </span>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value" style={valueStyle}>
+        {value}
+      </div>
     </div>
   );
 }
+
+const emptyChartStyle: React.CSSProperties = {
+  height: 280,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "var(--color-text-secondary)",
+};
 
 function SortableChartCard({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `chart-${id}`,
   });
   const style: React.CSSProperties = {
-    ...cardStyle,
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     cursor: "grab",
   };
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <h3 style={{ margin: "0 0 1rem 0", fontSize: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ color: "#94a3b8" }}>⋮⋮</span>
+    <div ref={setNodeRef} className="dashboard-chart-card" style={style} {...attributes} {...listeners}>
+      <h3 className="chart-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ opacity: 0.7 }} aria-hidden>
+          ⋮⋮
+        </span>
         {title}
       </h3>
       {children}
@@ -126,6 +135,9 @@ function SortableChartCard({ id, title, children }: { id: string; title: string;
 }
 
 export function Dashboard() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const gridStroke = isDark ? "#27272a" : "#f1f5f9";
   const [summaryOrder, setSummaryOrder] = useState<string[]>(() => loadOrder(STORAGE_SUMMARY, SUMMARY_IDS));
   const [chartOrder, setChartOrder] = useState<string[]>(() => loadOrder(STORAGE_CHART, CHART_IDS));
 
@@ -182,21 +194,42 @@ export function Dashboard() {
     }),
     []
   );
+  const trendFrom = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 12);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const trendTo = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const expenseFiltersTrend = useMemo(
+    () => ({ ...DEFAULT_EXPENSE_FILTERS, from: trendFrom, to: trendTo }),
+    [trendFrom, trendTo]
+  );
+  const incomeFiltersTrend = useMemo(
+    () => ({ ...DEFAULT_INCOME_FILTERS, from: trendFrom, to: trendTo }),
+    [trendFrom, trendTo]
+  );
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses(expenseFilters);
+  const { data: expensesTrend = [] } = useExpenses(expenseFiltersTrend);
   const { data: incomes = [], isLoading: incomesLoading } = useIncomes(incomeFilters);
+  const { data: incomesTrend = [] } = useIncomes(incomeFiltersTrend);
   const { data: budgets = [], isLoading: budgetsLoading } = useBudgets();
   const { data: assets = [], isLoading: assetsLoading } = useAssets();
 
+  function isExpenseInBudgetPeriod(occurredAt: string, periodStart: string, period: "monthly" | "yearly"): boolean {
+    if (period === "monthly") return occurredAt.slice(0, 7) === periodStart.slice(0, 7);
+    return occurredAt.slice(0, 4) === periodStart.slice(0, 4);
+  }
+
   const monthlyData = useMemo(() => {
     const byMonth: Record<string, number> = {};
-    expenses.forEach((e) => {
+    expensesTrend.forEach((e) => {
       const month = e.occurred_at.slice(0, 7);
       byMonth[month] = (byMonth[month] ?? 0) + Number(e.amount);
     });
     return Object.entries(byMonth)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [expenses]);
+  }, [expensesTrend]);
 
   const categoryData = useMemo(() => {
     const byCat: Record<string, number> = {};
@@ -206,6 +239,53 @@ export function Dashboard() {
     });
     return Object.entries(byCat).map(([name, value]) => ({ name, value }));
   }, [expenses]);
+
+  const monthlyIncomeData = useMemo(() => {
+    const byMonth: Record<string, number> = {};
+    incomesTrend.forEach((i) => {
+      const month = i.occurred_at.slice(0, 7);
+      byMonth[month] = (byMonth[month] ?? 0) + Number(i.amount);
+    });
+    return Object.entries(byMonth)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [incomesTrend]);
+
+  const incomeCategoryData = useMemo(() => {
+    const byCat: Record<string, number> = {};
+    incomes.forEach((i) => {
+      const name = i.categories?.name ?? "기타";
+      byCat[name] = (byCat[name] ?? 0) + Number(i.amount);
+    });
+    return Object.entries(byCat).map(([name, value]) => ({ name, value }));
+  }, [incomes]);
+
+  const budgetVsSpentData = useMemo(() => {
+    return budgets.map((b) => {
+      const spent = expensesTrend
+        .filter((e) => e.budget_id === b.id && isExpenseInBudgetPeriod(e.occurred_at, b.period_start, b.period))
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+      const categoryName = b.categories?.name ?? "기타";
+      const label =
+        b.period === "yearly"
+          ? `${categoryName} (${b.period_start.slice(0, 4)}년)`
+          : `${categoryName} (${b.period_start.slice(0, 7)})`;
+      return {
+        name: label,
+        budget: Number(b.amount),
+        spent,
+      };
+    });
+  }, [budgets, expensesTrend]);
+
+  const assetCategoryData = useMemo(() => {
+    const byCat: Record<string, number> = {};
+    assets.forEach((a) => {
+      const name = a.categories?.name ?? "기타";
+      byCat[name] = (byCat[name] ?? 0) + Number(a.amount);
+    });
+    return Object.entries(byCat).map(([name, value]) => ({ name, value }));
+  }, [assets]);
 
   const totalExpense = useMemo(() => expenses.reduce((sum, e) => sum + Number(e.amount), 0), [expenses]);
   const totalIncome = useMemo(() => incomes.reduce((sum, i) => sum + Number(i.amount), 0), [incomes]);
@@ -250,8 +330,10 @@ export function Dashboard() {
   if (isLoading) {
     return (
       <div>
-        <h1 style={{ marginBottom: "1rem" }}>대시보드</h1>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+        <header className="page-header">
+          <h1>대시보드</h1>
+        </header>
+        <div className="dashboard-summary-grid">
           <CardSkeleton />
           <CardSkeleton />
           <CardSkeleton />
@@ -267,17 +349,12 @@ export function Dashboard() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: "1rem" }}>대시보드</h1>
+      <header className="page-header">
+        <h1>대시보드</h1>
+      </header>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={summarySortableIds} strategy={rectSortingStrategy}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-              gap: 16,
-              marginBottom: "1.5rem",
-            }}
-          >
+          <div className="dashboard-summary-grid">
             {summaryItems.map((item) => (
               <SortableSummaryCard
                 key={item.id}
@@ -291,65 +368,161 @@ export function Dashboard() {
         </SortableContext>
 
         <SortableContext items={chartSortableIds} strategy={rectSortingStrategy}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 24,
-              marginBottom: "1.5rem",
-            }}
-          >
-            {chartOrder.map((id) =>
-              id === "line" ? (
-                <SortableChartCard key="line" id="line" title="월별 지출 추이">
-                  <ResponsiveContainer width="100%" height={280}>
-                    <LineChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}원`} />
-                      <Tooltip formatter={(v: number) => [`${v.toLocaleString()}원`, "지출"]} />
-                      <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </SortableChartCard>
-              ) : (
-                <SortableChartCard key="pie" id="pie" title="카테고리별 비율">
-                  {categoryData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={280}>
-                      <PieChart>
-                        <Pie
-                          data={categoryData}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {categoryData.map((_, i) => (
-                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(v: number) => `${v.toLocaleString()}원`} />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div
-                      style={{
-                        height: 280,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#94a3b8",
-                      }}
-                    >
-                      데이터 없음
-                    </div>
-                  )}
-                </SortableChartCard>
-              )
-            )}
+          <div className="dashboard-chart-grid">
+            {chartOrder.map((id) => {
+              if (id === "line") {
+                return (
+                  <SortableChartCard key="line" id="line" title="월별 지출 추이">
+                    {monthlyData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <LineChart data={monthlyData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                          <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}원`} />
+                          <Tooltip formatter={(v: number) => [`${v.toLocaleString()}원`, "지출"]} />
+                          <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div style={emptyChartStyle}>데이터 없음</div>
+                    )}
+                  </SortableChartCard>
+                );
+              }
+              if (id === "pie") {
+                return (
+                  <SortableChartCard key="pie" id="pie" title="지출 카테고리별 비율">
+                    {categoryData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <PieChart>
+                          <Pie
+                            data={categoryData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {categoryData.map((_, i) => (
+                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => `${v.toLocaleString()}원`} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div style={emptyChartStyle}>데이터 없음</div>
+                    )}
+                  </SortableChartCard>
+                );
+              }
+              if (id === "lineIncome") {
+                return (
+                  <SortableChartCard key="lineIncome" id="lineIncome" title="월별 수입 추이">
+                    {monthlyIncomeData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <LineChart data={monthlyIncomeData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                          <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}원`} />
+                          <Tooltip formatter={(v: number) => [`${v.toLocaleString()}원`, "수입"]} />
+                          <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div style={emptyChartStyle}>데이터 없음</div>
+                    )}
+                  </SortableChartCard>
+                );
+              }
+              if (id === "pieIncome") {
+                return (
+                  <SortableChartCard key="pieIncome" id="pieIncome" title="수입 카테고리별 비율">
+                    {incomeCategoryData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <PieChart>
+                          <Pie
+                            data={incomeCategoryData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {incomeCategoryData.map((_, i) => (
+                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => `${v.toLocaleString()}원`} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div style={emptyChartStyle}>데이터 없음</div>
+                    )}
+                  </SortableChartCard>
+                );
+              }
+              if (id === "barBudget") {
+                return (
+                  <SortableChartCard key="barBudget" id="barBudget" title="예산 대비 사용액">
+                    {budgetVsSpentData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={budgetVsSpentData} margin={{ top: 8, right: 8, left: 8, bottom: 60 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+                          <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}원`} />
+                          <Tooltip
+                            formatter={(v: number, name: string) => [
+                              `${v.toLocaleString()}원`,
+                              name === "budget" ? "예산" : "사용액",
+                            ]}
+                          />
+                          <Legend />
+                          <Bar dataKey="budget" name="예산" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="spent" name="사용액" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div style={emptyChartStyle}>데이터 없음</div>
+                    )}
+                  </SortableChartCard>
+                );
+              }
+              if (id === "pieAsset") {
+                return (
+                  <SortableChartCard key="pieAsset" id="pieAsset" title="자산 카테고리별 비율">
+                    {assetCategoryData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <PieChart>
+                          <Pie
+                            data={assetCategoryData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {assetCategoryData.map((_, i) => (
+                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => `${v.toLocaleString()}원`} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div style={emptyChartStyle}>데이터 없음</div>
+                    )}
+                  </SortableChartCard>
+                );
+              }
+              return null;
+            })}
           </div>
         </SortableContext>
       </DndContext>

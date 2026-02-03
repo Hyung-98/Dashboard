@@ -15,19 +15,16 @@ export interface Database {
           id: string;
           name: string;
           type: CategoryType;
-          user_id: string | null;
         };
         Insert: {
           id?: string;
           name: string;
           type: CategoryType;
-          user_id?: string | null;
         };
         Update: {
           id?: string;
           name?: string;
           type?: CategoryType;
-          user_id?: string | null;
         };
       };
       expenses: {

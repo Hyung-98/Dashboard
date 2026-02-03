@@ -39,58 +39,19 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="modal-overlay"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 8,
-          maxWidth: 480,
-          width: "90%",
-          maxHeight: "90vh",
-          overflow: "auto",
-          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            padding: "1rem 1.25rem",
-            borderBottom: "1px solid #e2e8f0",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <h2 id="modal-title" style={{ margin: 0, fontSize: "1.125rem" }}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 id="modal-title" className="modal-title">
             {title}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="닫기"
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "1.25rem",
-              cursor: "pointer",
-              color: "#64748b",
-              padding: 4,
-            }}
-          >
+          <button type="button" onClick={onClose} aria-label="닫기" className="modal-close">
             ×
           </button>
         </div>
-        <div style={{ padding: "1.25rem" }}>{children}</div>
+        <div className="modal-body">{children}</div>
       </div>
     </div>
   );

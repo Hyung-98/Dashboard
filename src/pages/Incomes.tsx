@@ -116,8 +116,8 @@ export function Incomes() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <h1 style={{ margin: 0 }}>수입 목록</h1>
+      <header className="page-header">
+        <h1>수입 목록</h1>
         <button
           type="button"
           onClick={() => setAddModalOpen(true)}
@@ -133,7 +133,7 @@ export function Incomes() {
         >
           수입 추가
         </button>
-      </div>
+      </header>
       <Modal
         open={addModalOpen || editingIncome != null}
         onClose={() => {
@@ -151,15 +151,7 @@ export function Incomes() {
           }}
         />
       </Modal>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "1rem",
-          alignItems: "flex-end",
-          marginBottom: "1.5rem",
-        }}
-      >
+      <div className="filter-row">
         <DateRangePicker from={filters.from} to={filters.to} onChange={(from, to) => setFilters({ from, to })} />
         <Select
           options={categoryOptions}
