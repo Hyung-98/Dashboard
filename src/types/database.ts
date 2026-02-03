@@ -1,0 +1,155 @@
+/**
+ * Supabase Database types.
+ * Generate with Supabase MCP generate_typescript_types, or define manually until schema is applied.
+ */
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type CategoryType = "expense" | "asset" | "income";
+export type BudgetPeriod = "monthly" | "yearly";
+
+export interface Database {
+  public: {
+    Tables: {
+      categories: {
+        Row: {
+          id: string;
+          name: string;
+          type: CategoryType;
+          user_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          type: CategoryType;
+          user_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          type?: CategoryType;
+          user_id?: string | null;
+        };
+      };
+      expenses: {
+        Row: {
+          id: string;
+          category_id: string;
+          budget_id: string | null;
+          amount: number;
+          occurred_at: string;
+          memo: string | null;
+          created_at: string;
+          user_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          category_id: string;
+          budget_id?: string | null;
+          amount: number;
+          occurred_at: string;
+          memo?: string | null;
+          created_at?: string;
+          user_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          category_id?: string;
+          budget_id?: string | null;
+          amount?: number;
+          occurred_at?: string;
+          memo?: string | null;
+          created_at?: string;
+          user_id?: string | null;
+        };
+      };
+      budgets: {
+        Row: {
+          id: string;
+          category_id: string;
+          amount: number;
+          period: BudgetPeriod;
+          period_start: string;
+          user_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          category_id: string;
+          amount: number;
+          period: BudgetPeriod;
+          period_start: string;
+          user_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          category_id?: string;
+          amount?: number;
+          period?: BudgetPeriod;
+          period_start?: string;
+          user_id?: string | null;
+        };
+      };
+      assets: {
+        Row: {
+          id: string;
+          category_id: string | null;
+          amount: number;
+          name: string;
+          updated_at: string;
+          user_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          category_id?: string | null;
+          amount: number;
+          name: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          category_id?: string | null;
+          amount?: number;
+          name?: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+      };
+      incomes: {
+        Row: {
+          id: string;
+          category_id: string;
+          amount: number;
+          occurred_at: string;
+          memo: string | null;
+          created_at: string;
+          user_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          category_id: string;
+          amount: number;
+          occurred_at: string;
+          memo?: string | null;
+          created_at?: string;
+          user_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          category_id?: string;
+          amount?: number;
+          occurred_at?: string;
+          memo?: string | null;
+          created_at?: string;
+          user_id?: string | null;
+        };
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+  };
+}
+
+export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"];
+export type Insertable<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Insert"];
+export type Updatable<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Update"];
