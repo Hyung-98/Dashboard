@@ -1,78 +1,48 @@
 # 개인 자산 관리 대시보드
 
-복잡한 데이터를 다루는 대시보드 관리자 페이지 예제입니다. TypeScript, TanStack Query, Recharts, Supabase를 사용합니다.
+TypeScript, React, TanStack Query, Recharts, Supabase로 구현한 지출·예산·자산·수입 관리 대시보드입니다.
+
+## 목차
+
+- [기술 스택](#기술-스택)
+- [시작하기](#시작하기)
+- [환경 변수](#환경-변수)
+- [배포 (AWS Amplify)](#배포-aws-amplify)
+- [Supabase](#supabase)
+- [주요 기능](#주요-기능)
+- [디렉터리 구조](#디렉터리-구조)
+- [라이선스](#라이선스)
 
 ## 기술 스택
 
-- **빌드**: Vite + React 18
-- **언어**: TypeScript (strict)
-- **서버 상태**: TanStack Query v5
-- **시각화**: Recharts
-- **백엔드**: Supabase (Auth + Database)
-- **라우팅**: React Router v6
-- **UI 문서화**: Storybook 8
+| 구분      | 기술                       |
+| --------- | -------------------------- |
+| 빌드      | Vite + React 18            |
+| 언어      | TypeScript (strict)        |
+| 서버 상태 | TanStack Query v5          |
+| 시각화    | Recharts                   |
+| 백엔드    | Supabase (Auth + Database) |
+| 라우팅    | React Router v6            |
+| UI 문서   | Storybook 8                |
 
-## 실행 방법
-
-1. 의존성 설치
+## 시작하기
 
 ```bash
+# 의존성 설치
 npm install
-```
 
-2. 환경 변수 설정
-
-`.env.example`을 참고해 `.env` 파일을 만들고 Supabase 프로젝트 URL과 anon key를 넣습니다.
-
-```bash
+# 환경 변수 설정 (.env.example 참고하여 .env 생성)
 cp .env.example .env
-# .env 편집: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-```
 
-3. 개발 서버 실행
-
-```bash
+# 개발 서버
 npm run dev
-```
 
-4. 빌드
-
-```bash
+# 빌드
 npm run build
-```
 
-5. Storybook (공통 컴포넌트 문서)
-
-```bash
+# Storybook (공통 컴포넌트)
 npm run storybook
 ```
-
-## 배포 (AWS Amplify)
-
-1. **GitHub 저장소 연결**  
-   AWS Amplify Console → New app → Host web app → GitHub 선택 후 이 저장소 연결.
-
-2. **브랜치 선택**  
-   배포할 브랜치(예: `main`) 선택.
-
-3. **빌드 설정**  
-   저장소 루트의 `amplify.yml`이 자동 인식됩니다. Build command: `npm run build`, Output directory: `dist`로 설정됨.
-
-4. **SPA 리라이트 설정**  
-   Amplify Console → 해당 앱 → **Hosting** → **Rewrites and redirects**에서 규칙 추가:
-
-   - Source: `/<*>`
-   - Target: `/index.html`
-   - Type: **200 (Rewrite)**
-
-5. **환경 변수**  
-   Amplify Console → 해당 앱 → **Environment variables**에서 Build-time 변수로 추가:
-
-   - `VITE_SUPABASE_URL`: Supabase 프로젝트 URL
-   - `VITE_SUPABASE_ANON_KEY`: Supabase anon (public) key
-
-6. **배포**  
-   Save and deploy 후 배포 URL에서 앱 확인. 커스텀 도메인은 Hosting → Domain management에서 설정할 수 있습니다.
 
 ## 환경 변수
 
@@ -81,43 +51,80 @@ npm run storybook
 | `VITE_SUPABASE_URL`      | Supabase 프로젝트 URL      |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon (public) key |
 
-## Supabase 스키마
+## 배포 (AWS Amplify)
 
-`supabase/migrations/20250202000000_initial_schema.sql`에 초기 스키마가 정의되어 있습니다. Supabase 대시보드 SQL Editor 또는 MCP `apply_migration`으로 적용할 수 있습니다.
+1. **GitHub 연결** — Amplify Console → New app → Host web app → 이 저장소 연결 후 브랜치(예: `main`) 선택.
+2. **빌드** — 루트의 `amplify.yml` 사용. Build: `npm run build`, Output: `dist`.
+3. **SPA 리라이트** — Hosting → Rewrites and redirects: Source `/<*>`, Target `/index.html`, Type **200 (Rewrite)**.
+4. **환경 변수** — Build-time에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 추가.
+5. **배포** — Save and deploy. 커스텀 도메인은 Hosting → Domain management에서 설정.
 
-- **categories**: 카테고리 (expense/asset/income)
-- **expenses**: 지출 (category_id, amount, occurred_at, memo)
-- **budgets**: 예산 (category_id, amount, period, period_start)
-- **assets**: 자산 (category_id, amount, name, updated_at)
+## Supabase
 
-RLS가 활성화되어 있으며, `auth.uid()`와 `user_id`로 사용자별 데이터가 격리됩니다.
+### 스키마 요약
 
-**로그인 없이 지출/예산/자산 입력을 쓰려면** Supabase 대시보드에서 **Authentication → Providers → Anonymous** 를 켜 주세요. 앱 진입 시 세션이 없으면 익명 로그인을 시도합니다.
+| 마이그레이션                            | 내용                                  |
+| --------------------------------------- | ------------------------------------- |
+| `20250202000000_initial_schema.sql`     | categories, expenses, budgets, assets |
+| `20250202100000_incomes.sql`            | incomes 테이블                        |
+| `20250203100000_check_email_exists.sql` | 회원가입 이메일 중복 확인 RPC         |
 
-## 역량 요약
+**테이블**: categories(카테고리), expenses(지출), budgets(예산), assets(자산), incomes(수입).  
+RLS로 `auth.uid()` = `user_id` 기준 사용자별 데이터 격리.
 
-| 역량                         | 구현                                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **복합 필터링 + URL**        | `useExpenseFilters` 훅으로 날짜/카테고리/금액대 필터를 URL Query String과 동기화. `/expenses`에서 적용. |
-| **공통 컴포넌트 라이브러리** | `src/components/ui/`에 Table, Modal, Select, DateRangePicker, Skeleton. Storybook 스토리로 문서화.      |
-| **에러 핸들링**              | Error Boundary로 런타임 오류 시 fallback UI 및 "다시 시도" 버튼. API 실패 시 인라인 에러 메시지.        |
-| **스켈레톤 UI**              | 로딩 시 TableSkeleton, CardSkeleton 사용.                                                               |
-| **TypeScript**               | DB/도메인/필터 타입 엄격 정의 (`src/types/`).                                                           |
-| **TanStack Query**           | queryKeys, useQuery, 필터 기반 캐시 (`src/api/`).                                                       |
-| **데이터 시각화**            | Recharts로 대시보드 월별 지출 추이(LineChart), 카테고리별 비율(PieChart).                               |
+### 마이그레이션 적용
+
+**CLI (권장)**
+
+```bash
+npx supabase login
+npx supabase link --project-ref <프로젝트_REF>
+npx supabase db push
+```
+
+로컬 Supabase 사용 시: `npx supabase start` 후 `npx supabase migration up`.
+
+**원격 DB에 이미 테이블이 있는 경우** (처음 push 시 "relation already exists" 나올 때):
+
+```bash
+npx supabase migration repair --status applied 20250202000000
+npx supabase migration repair --status applied 20250202100000
+npx supabase db push
+```
+
+**대시보드**: SQL Editor에서 `supabase/migrations/` 내 `.sql`을 **순서대로** 실행. 적용 여부는 Database → Migrations에서 확인.
+
+### 인증
+
+- **이메일/비밀번호** 로그인·회원가입. 회원가입 시 비밀번호 강도·비밀번호 확인·이메일 중복 확인·약관 동의 적용.
+- **익명 로그인**: Dashboard → Authentication → Providers → **Anonymous** 활성화 시, 세션 없을 때 익명 로그인 시도.
+
+## 주요 기능
+
+| 기능                | 설명                                                                                          |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| **인증**            | 로그인/회원가입, 한글 에러 메시지, 비밀번호 강도·확인·이메일 중복 확인·약관 동의, 익명 로그인 |
+| **복합 필터 + URL** | `useExpenseFilters` / `useIncomeFilters`로 날짜·카테고리·금액 필터를 URL 쿼리와 동기화        |
+| **공통 UI**         | Table, Modal, Select, DateRangePicker, Skeleton — Storybook 스토리로 문서화                   |
+| **에러 처리**       | Error Boundary, API 실패 시 인라인 한글 메시지                                                |
+| **스켈레톤**        | 로딩 시 TableSkeleton, CardSkeleton                                                           |
+| **데이터 시각화**   | Recharts로 대시보드 월별 지출 추이(LineChart), 카테고리별 비율(PieChart)                      |
+| **타입**            | DB/도메인/필터 타입 정의 (`src/types/`), TanStack Query 캐시 (`src/api/`)                     |
 
 ## 디렉터리 구조
 
 ```
 src/
-  api/           # queryKeys, expenses, budgets, assets, categories, hooks
+  api/           # queryKeys, expenses, budgets, assets, categories, incomes, hooks
   components/
     ui/          # Table, Modal, Select, DateRangePicker, Skeleton (+ .stories)
+    forms/       # AssetForm, BudgetForm, CategoryForm, ExpenseForm, IncomeForm
+    AuthInit.tsx
     ErrorBoundary.tsx
     Layout.tsx
-  hooks/         # useExpenseFilters
-  lib/           # supabase.ts
-  pages/         # Dashboard, Expenses, Budgets, Assets
+  hooks/         # useExpenseFilters, useIncomeFilters
+  lib/           # supabase.ts, authErrors.ts
+  pages/         # Dashboard, Expenses, Budgets, Assets, Categories, Incomes, Login
   types/         # database, domain, filters, api
   App.tsx, main.tsx
 ```
