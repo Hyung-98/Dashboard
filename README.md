@@ -64,6 +64,42 @@ npm run storybook
 4. **환경 변수** — Build-time에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 추가.
 5. **배포** — Save and deploy. 커스텀 도메인은 Hosting → Domain management에서 설정.
 
+### 배포 후 사용하기 (KR 주식·DB·Auth)
+
+배포된 앱이 **클라우드 Supabase**와 **KR 주식 현재가**를 쓰려면 아래를 모두 해 두어야 합니다.
+
+| 순서 | 할 일                 | 설명                                                                                                                                                                                                                            |
+| ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Edge Function 배포    | `npx supabase functions deploy kis-kr-price` (프로젝트 연결 후 한 번)                                                                                                                                                           |
+| 2    | Edge Function Secrets | Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 (모의투자 시 `MOK_KIS_APP_KEY`, `MOK_KIS_APP_SECRET` 추가)                                                  |
+| 3    | 프론트엔드 환경 변수  | Amplify(또는 사용 중인 호스팅) Build 설정에서 **클라우드** Supabase 값 사용: `VITE_SUPABASE_URL=https://<프로젝트_REF>.supabase.co`, `VITE_SUPABASE_ANON_KEY=<클라우드_anon_key>` (Dashboard → Project settings → API에서 확인) |
+| 4    | DB 스키마             | 원격 DB에 마이그레이션 적용: `npx supabase link --project-ref <REF>` 후 `npx supabase db push`                                                                                                                                  |
+
+- **로컬에서만** 개발할 때는 `.env.local`에 로컬 URL(`http://127.0.0.1:54321`)을 두고, **배포 빌드**할 때는 호스팅 쪽 환경 변수에 클라우드 URL을 넣으면 됩니다. (`.env.local`은 빌드 서버에 없으므로 Amplify 등에 반드시 설정)
+- KR 종목 현재가가 안 나오면: Edge Function 배포 여부, Secrets 등록, 그리고 프론트가 **클라우드** Supabase URL을 쓰는지 확인하세요.
+
+### 배포 후 자주 나는 오류
+
+| 증상                                 | 원인                                     | 조치                                                                                                                                                                                                   |
+| ------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`/stocks/` 등 경로에서 404**       | SPA 라우팅: 서버에 해당 경로 파일이 없음 | Amplify Console → **Hosting** → **Rewrites and redirects** → 규칙 추가: Source `/<*>`, Target `/index.html`, Type **200 (Rewrite)**. (실제 파일이 있으면 그대로 제공되고, 없을 때만 index.html로 넘김) |
+| **`kis-kr-price` 502 (Bad Gateway)** | Edge Function 미배포 또는 Secrets 미설정 | ① `npx supabase functions deploy kis-kr-price` 실행 ② Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 후 재배포 없이 반영됨        |
+
+**502가 계속 날 때** — 원인 확인 순서:
+
+1. **브라우저 콘솔**  
+   배포된 앱에서 F12 → **Console**. `kis-kr-price: ...` 로그에 함수가 돌려준 메시지가 찍힙니다.
+
+   - `KIS_APP_KEY / KIS_APP_SECRET not set` → Secrets 미등록 또는 이름 오타 (`KIS_APP_KEY`, `KIS_APP_SECRET` 정확히)
+   - `KIS token failed: 401` → KIS 앱키/시크릿이 잘못됐거나 만료. [KIS 개발자포털](https://apiportal.koreainvestment.com/)에서 확인
+   - `KIS price failed: ...` → KIS 시세 API 권한/tr_id 문제. 포털 API 가이드 참고
+
+2. **Supabase 함수 로그**  
+   Supabase Dashboard → **Edge Functions** → **kis-kr-price** → **Logs** (또는 **Invocations**). 여기서 타임아웃·크래시·에러 스택 확인.
+
+3. **배포·연결 확인**  
+   터미널에서 `npx supabase functions list` 로 해당 프로젝트에 `kis-kr-price`가 보이는지 확인. 안 보이면 `npx supabase link --project-ref <프로젝트_REF>` 후 `npx supabase functions deploy kis-kr-price` 다시 실행.
+
 ## Supabase
 
 ### KR 주식 현재가 (Edge Function)

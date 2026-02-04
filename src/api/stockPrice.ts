@@ -23,18 +23,19 @@ export async function getCurrentPrice(symbol: string, market: StockMarket): Prom
       try {
         data = (await res.json()) as { price?: number; error?: string };
       } catch {
-        if (import.meta.env.DEV) console.error("kis-kr-price: invalid JSON response");
+        console.error("kis-kr-price: invalid JSON response (502 may mean function not deployed or crashed)");
         return null;
       }
       if (!res.ok) {
-        if (import.meta.env.DEV) console.error("kis-kr-price:", data?.error ?? res.status);
+        const msg = data?.error ?? `HTTP ${res.status}`;
+        console.error("kis-kr-price:", msg);
         return null;
       }
       const price = data?.price;
       if (typeof price !== "number" || !Number.isFinite(price) || price < 0) return null;
       return price;
     } catch (e) {
-      if (import.meta.env.DEV) console.error("kis-kr-price:", e);
+      console.error("kis-kr-price:", e);
       return null;
     }
   }
