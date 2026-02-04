@@ -11,7 +11,8 @@ export async function fetchExpenses(filters: ExpenseFilters): Promise<ExpenseWit
     q = q.gte("occurred_at", filters.from);
   }
   if (filters.to) {
-    q = q.lte("occurred_at", filters.to);
+    const toEndOfDay = /^\d{4}-\d{2}-\d{2}$/.test(filters.to) ? `${filters.to}T23:59:59.999` : filters.to;
+    q = q.lte("occurred_at", toEndOfDay);
   }
   if (filters.categoryId) {
     q = q.eq("category_id", filters.categoryId);

@@ -5,6 +5,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { Expenses } from "@/pages/Expenses";
 import { Budgets } from "@/pages/Budgets";
 import { Assets } from "@/pages/Assets";
+import { Stocks } from "@/pages/Stocks";
 import { Categories } from "@/pages/Categories";
 import { Incomes } from "@/pages/Incomes";
 
@@ -21,6 +22,7 @@ function App() {
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/assets" element={<Assets />} />
+          <Route path="/stocks" element={<Stocks />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/incomes" element={<Incomes />} />
         </Routes>

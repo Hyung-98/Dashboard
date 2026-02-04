@@ -5,6 +5,7 @@ export type Expense = Tables<"expenses">;
 export type Budget = Tables<"budgets">;
 export type Asset = Tables<"assets">;
 export type Income = Tables<"incomes">;
+export type StockHolding = Tables<"stock_holdings">;
 
 export interface CategoryRow {
   id: string;

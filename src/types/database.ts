@@ -6,6 +6,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type CategoryType = "expense" | "asset" | "income";
 export type BudgetPeriod = "monthly" | "yearly";
+export type StockMarket = "KR" | "US";
 
 export interface Database {
   public: {
@@ -138,6 +139,41 @@ export interface Database {
           memo?: string | null;
           created_at?: string;
           user_id?: string | null;
+        };
+      };
+      stock_holdings: {
+        Row: {
+          id: string;
+          user_id: string;
+          symbol: string;
+          market: StockMarket;
+          name: string | null;
+          quantity: number;
+          average_buy_price: number;
+          memo: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          symbol: string;
+          market: StockMarket;
+          name?: string | null;
+          quantity: number;
+          average_buy_price: number;
+          memo?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          symbol?: string;
+          market?: StockMarket;
+          name?: string | null;
+          quantity?: number;
+          average_buy_price?: number;
+          memo?: string | null;
+          updated_at?: string;
         };
       };
     };

@@ -14,6 +14,7 @@ const nav = [
   { to: "/incomes", label: "수입", icon: "income" },
   { to: "/budgets", label: "예산", icon: "budget" },
   { to: "/assets", label: "자산", icon: "asset" },
+  { to: "/stocks", label: "주식", icon: "stock" },
   { to: "/categories", label: "카테고리", icon: "category" },
 ];
 
@@ -24,6 +25,7 @@ const pathToTitle: Record<string, string> = {
   "/incomes": "수입",
   "/budgets": "예산",
   "/assets": "자산",
+  "/stocks": "주식",
   "/categories": "카테고리",
 };
 
@@ -113,6 +115,21 @@ function NavIcon({ name }: { name: string }) {
           strokeWidth="2"
         >
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        </svg>
+      );
+    case "stock":
+      return (
+        <svg
+          className={className}
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="2"
+        >
+          <polyline points="22 6 13.5 14.5 8.5 9.5 2 18" />
+          <path d="M16 6h6v6" />
         </svg>
       );
     case "category":

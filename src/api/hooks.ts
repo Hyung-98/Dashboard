@@ -4,6 +4,9 @@ import { fetchExpenses, createExpense, updateExpense, deleteExpense } from "./ex
 import { fetchBudgets, createBudget, updateBudget, deleteBudget } from "./budgets";
 import { fetchAssets, createAsset, updateAsset, deleteAsset } from "./assets";
 import { fetchIncomes, createIncome, updateIncome, deleteIncome } from "./incomes";
+import { fetchStockHoldings, createStockHolding, updateStockHolding, deleteStockHolding } from "./stocks";
+import { getCurrentPrices, priceKey } from "./stockPrice";
+import type { StockHolding } from "@/types/domain";
 import { queryKeys } from "./queryKeys";
 import type { ExpenseFilters } from "@/types/filters";
 import type { IncomeFilters } from "@/types/filters";
@@ -163,6 +166,60 @@ export function useDeleteAsset() {
     mutationFn: deleteAsset,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.assets() });
+    },
+  });
+}
+
+export function useStockHoldings() {
+  return useQuery({
+    queryKey: queryKeys.stocks(),
+    queryFn: fetchStockHoldings,
+  });
+}
+
+const STOCK_PRICE_STALE_MS = 10 * 60;
+
+export function useStockPrices(holdings: StockHolding[]) {
+  const keys = holdings
+    .map((h) => priceKey(h.market, h.symbol))
+    .sort()
+    .join(",");
+  return useQuery({
+    queryKey: [...queryKeys.stocks(), "prices", keys],
+    queryFn: () => getCurrentPrices(holdings.map((h) => ({ symbol: h.symbol, market: h.market }))),
+    enabled: holdings.length > 0,
+    staleTime: STOCK_PRICE_STALE_MS,
+  });
+}
+
+export function useCreateStockHolding() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Omit<Insertable<"stock_holdings">, "id" | "updated_at" | "user_id">) =>
+      createStockHolding(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocks() });
+    },
+  });
+}
+
+export function useUpdateStockHolding() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Updatable<"stock_holdings"> }) =>
+      updateStockHolding(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocks() });
+    },
+  });
+}
+
+export function useDeleteStockHolding() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteStockHolding,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocks() });
     },
   });
 }
