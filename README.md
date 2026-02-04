@@ -60,9 +60,37 @@ npm run storybook
 
 1. **GitHub 연결** — Amplify Console → New app → Host web app → 이 저장소 연결 후 브랜치(예: `main`) 선택.
 2. **빌드** — 루트의 `amplify.yml` 사용. Build: `npm run build`, Output: `dist`.
-3. **SPA 리라이트** — Hosting → Rewrites and redirects: Source `/<*>`, Target `/index.html`, Type **200 (Rewrite)**.
+3. **SPA 리라이트** — Hosting → Rewrites and redirects에서 **정적 파일(.js, .css 등)은 제외**하고 나머지 경로만 `index.html`로 보내야 합니다. `/<*>` 하나만 쓰면 JS/CSS 요청까지 HTML로 돌아가서 "MIME type text/html" 오류가 납니다. 아래 **SPA용 규칙** 사용.
 4. **환경 변수** — Build-time에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 추가.
 5. **배포** — Save and deploy. 커스텀 도메인은 Hosting → Domain management에서 설정.
+
+**SPA용 리라이트 규칙 (정적 파일 제외)** — Amplify Console → **Hosting** → **Rewrites and redirects** → **Edit**:
+
+- 기존에 `/<*>` → `/index.html` (200) 규칙이 있으면 **삭제**합니다.
+- **Add rule** → 아래 중 한 가지 방식으로 추가합니다.
+
+  **방식 A (콘솔에서 한 줄 규칙)**
+
+  - Source address:  
+    `/^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/`
+  - Target address: `/index.html`
+  - Type: **200 (Rewrite)**
+
+  **방식 B (JSON 에디터)**  
+  Rewrites and redirects에서 **Edit** → **Open in JSON editor** 후, 아래 배열로 **기존 규칙을 대체**합니다 (필요 시 다른 규칙과 합쳐서 사용). `source`는 정규식 문자열입니다.
+
+  ```json
+  [
+    {
+      "source": "/^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/",
+      "status": "200",
+      "target": "/index.html",
+      "condition": null
+    }
+  ]
+  ```
+
+  위 정규식은 `.js`, `.css`, `.svg` 등 지정한 확장자 요청은 **리라이트하지 않고** 그대로 파일로 제공하고, `/stocks`, `/`, `/dashboard` 같은 경로만 `index.html`로 보냅니다.
 
 ### 배포 후 사용하기 (KR 주식·DB·Auth)
 
@@ -80,10 +108,11 @@ npm run storybook
 
 ### 배포 후 자주 나는 오류
 
-| 증상                                 | 원인                                     | 조치                                                                                                                                                                                                   |
-| ------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **`/stocks/` 등 경로에서 404**       | SPA 라우팅: 서버에 해당 경로 파일이 없음 | Amplify Console → **Hosting** → **Rewrites and redirects** → 규칙 추가: Source `/<*>`, Target `/index.html`, Type **200 (Rewrite)**. (실제 파일이 있으면 그대로 제공되고, 없을 때만 index.html로 넘김) |
-| **`kis-kr-price` 502 (Bad Gateway)** | Edge Function 미배포 또는 Secrets 미설정 | ① `npx supabase functions deploy kis-kr-price` 실행 ② Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 후 재배포 없이 반영됨        |
+| 증상                                    | 원인                                                  | 조치                                                                                                                                                                                            |
+| --------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`/stocks/` 등 경로에서 404**          | SPA 라우팅: 서버에 해당 경로 파일이 없음              | 아래 **SPA용 리라이트 규칙** 적용 (정적 파일 제외).                                                                                                                                             |
+| **JS 로드 실패, MIME type "text/html"** | `/<*>` 리라이트가 .js/.css 요청까지 index.html로 보냄 | 기존 `/<*>` 규칙을 **삭제**하고 아래 SPA용 규칙으로 **교체**.                                                                                                                                   |
+| **`kis-kr-price` 502 (Bad Gateway)**    | Edge Function 미배포 또는 Secrets 미설정              | ① `npx supabase functions deploy kis-kr-price` 실행 ② Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 후 재배포 없이 반영됨 |
 
 **502가 계속 날 때** — 원인 확인 순서:
 
@@ -92,6 +121,7 @@ npm run storybook
 
    - `KIS_APP_KEY / KIS_APP_SECRET not set` → Secrets 미등록 또는 이름 오타 (`KIS_APP_KEY`, `KIS_APP_SECRET` 정확히)
    - `KIS token failed: 401` → KIS 앱키/시크릿이 잘못됐거나 만료. [KIS 개발자포털](https://apiportal.koreainvestment.com/)에서 확인
+   - `KIS token failed: 403` + "접근토큰 발급 잠시 후 다시 시도하세요(1분당 1회)" → KIS가 **접근토큰 발급을 1분당 1회**로 제한함. Edge Function은 동시 요청 시 토큰 요청을 직렬화하므로, 1분 정도 지난 뒤 다시 시도하거나 프론트에서 KR 시세 조회 빈도를 줄이면 됨.
    - `KIS price failed: ...` → KIS 시세 API 권한/tr_id 문제. 포털 API 가이드 참고
 
 2. **Supabase 함수 로그**  

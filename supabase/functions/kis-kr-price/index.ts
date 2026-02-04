@@ -20,6 +20,8 @@ function toSixDigitSymbol(s: string): string {
 
 /** In-memory token cache by env (real/demo), reused within same isolate. */
 const tokenCache: { real?: { token: string; expiresAt: number }; demo?: { token: string; expiresAt: number } } = {};
+/** Serialize token fetch: only one in-flight request per real/demo so we don't hit KIS "1 token per minute" limit. */
+let tokenFetchPromise: { real?: Promise<string>; demo?: Promise<string> } = {};
 const EXPIRY_BUFFER_MS = 60 * 1000;
 
 interface ReqBody {
@@ -98,31 +100,41 @@ Deno.serve(async (req) => {
         accessToken = entry.token;
       }
       if (!accessToken) {
-        const tokenRes = await fetch(`${base}/oauth2/tokenP`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            grant_type: "client_credentials",
-            appkey: appKey,
-            appsecret: appSecret,
-          }),
-        });
+        let tokenPromise = tokenFetchPromise[cacheKey];
+        if (!tokenPromise) {
+          tokenPromise = (async (): Promise<string> => {
+            try {
+              const tokenRes = await fetch(`${base}/oauth2/tokenP`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  grant_type: "client_credentials",
+                  appkey: appKey,
+                  appsecret: appSecret,
+                }),
+              });
 
-        if (!tokenRes.ok) {
-          const text = await tokenRes.text();
-          return jsonResponse({ error: `KIS token failed: ${tokenRes.status} ${text}` }, 502);
-        }
+              if (!tokenRes.ok) {
+                const text = await tokenRes.text();
+                throw new Error(`KIS token failed: ${tokenRes.status} ${text}`);
+              }
 
-        const tokenData = (await tokenRes.json()) as TokenResponse;
-        accessToken = tokenData.access_token;
-        if (!accessToken) {
-          return jsonResponse({ error: "KIS token response missing access_token" }, 502);
+              const tokenData = (await tokenRes.json()) as TokenResponse;
+              const tok = tokenData.access_token;
+              if (!tok) throw new Error("KIS token response missing access_token");
+              const expiredStr = tokenData.access_token_token_expired;
+              const expiresAt = expiredStr
+                ? new Date(expiredStr.replace(" ", "T")).getTime() - EXPIRY_BUFFER_MS
+                : Date.now() + 23 * 60 * 60 * 1000;
+              tokenCache[cacheKey] = { token: tok, expiresAt };
+              return tok;
+            } finally {
+              delete tokenFetchPromise[cacheKey];
+            }
+          })();
+          tokenFetchPromise[cacheKey] = tokenPromise;
         }
-        const expiredStr = tokenData.access_token_token_expired;
-        const expiresAt = expiredStr
-          ? new Date(expiredStr.replace(" ", "T")).getTime() - EXPIRY_BUFFER_MS
-          : now + 23 * 60 * 60 * 1000;
-        tokenCache[cacheKey] = { token: accessToken, expiresAt };
+        accessToken = await tokenPromise;
       }
 
       const priceUrl = new URL(`${base}/uapi/domestic-stock/v1/quotations/inquire-price`);
