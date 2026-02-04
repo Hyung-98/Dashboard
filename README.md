@@ -8,6 +8,7 @@ TypeScript, React, TanStack Query, Recharts, Supabase로 구현한 지출·예�
 - [시작하기](#시작하기)
 - [환경 변수](#환경-변수)
 - [배포 (AWS Amplify)](#배포-aws-amplify)
+- [로컬 개발 시 주의사항](#로컬-개발-시-주의사항)
 - [Supabase](#supabase)
 - [주요 기능](#주요-기능)
 - [디렉터리 구조](#디렉터리-구조)
@@ -105,6 +106,41 @@ npm run storybook
 
 - **로컬에서만** 개발할 때는 `.env.local`에 로컬 URL(`http://127.0.0.1:54321`)을 두고, **배포 빌드**할 때는 호스팅 쪽 환경 변수에 클라우드 URL을 넣으면 됩니다. (`.env.local`은 빌드 서버에 없으므로 Amplify 등에 반드시 설정)
 - KR 종목 현재가가 안 나오면: Edge Function 배포 여부, Secrets 등록, 그리고 프론트가 **클라우드** Supabase URL을 쓰는지 확인하세요.
+
+### 로컬 개발 시 주의사항
+
+로컬에서 개발할 때 다음 사항을 확인하세요:
+
+1. **로컬 Supabase 시작**
+
+   - `npx supabase start` 실행 (최초 1회)
+   - 로컬 Supabase가 `http://127.0.0.1:54321`에서 실행됩니다
+
+2. **환경 변수 설정**
+
+   - `.env.local` 파일에 로컬 Supabase URL 설정:
+     ```
+     VITE_SUPABASE_URL=http://127.0.0.1:54321
+     VITE_SUPABASE_ANON_KEY=<로컬_anon_key>
+     ```
+   - 로컬 anon key는 `npx supabase start` 실행 후 터미널 출력에서 확인하거나 `supabase status` 명령으로 확인 가능합니다
+
+3. **마이그레이션 적용**
+
+   - 로컬 DB에 마이그레이션 적용: `npx supabase migration up`
+   - 또는 `npx supabase db reset`으로 초기화 후 마이그레이션 자동 적용
+
+4. **Edge Function 로컬 실행** (KR 주식 현재가 사용 시)
+
+   - `supabase functions serve kis-kr-price --no-verify-jwt --env-file .env.local`
+   - `.env.local`에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등이 있어야 합니다
+   - 로컬 함수는 `http://127.0.0.1:54321/functions/v1/kis-kr-price`에서 실행됩니다
+
+5. **주의사항**
+   - `.env.local`은 Git에 커밋하지 마세요 (`.gitignore`에 포함되어야 함)
+   - 배포 빌드 시에는 `.env.local`이 사용되지 않으므로 호스팅 플랫폼(Amplify 등)에 환경 변수를 별도로 설정해야 합니다
+   - 로컬과 클라우드 Supabase는 별개의 데이터베이스이므로 데이터가 공유되지 않습니다
+   - 로컬에서 테스트한 후 클라우드에도 동일한 마이그레이션을 적용해야 합니다
 
 ### 배포 후 자주 나는 오류
 

@@ -71,15 +71,58 @@ export function priceKey(market: StockMarket, symbol: string): string {
 
 /**
  * Fetch current prices for multiple holdings. Returns a map of priceKey -> price (null if unavailable).
- * Calls getCurrentPrice per symbol; use with React Query staleTime to limit API usage.
+ * KR: single POST with symbols (batch) to avoid one token per symbol. US: one Alpha Vantage call per symbol.
  */
 export async function getCurrentPrices(
   items: { symbol: string; market: StockMarket }[]
 ): Promise<Record<string, number | null>> {
   const result: Record<string, number | null> = {};
-  for (const { symbol, market } of items) {
-    const key = priceKey(market, symbol);
-    result[key] = await getCurrentPrice(symbol, market);
+  const krItems = items.filter((i) => i.market === "KR");
+  const usItems = items.filter((i) => i.market === "US");
+
+  if (krItems.length > 0) {
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kis-kr-price`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ symbols: krItems.map((i) => i.symbol.trim()) }),
+      });
+      let data: { prices?: Record<string, number | null>; error?: string } | undefined;
+      try {
+        data = (await res.json()) as { prices?: Record<string, number | null>; error?: string };
+      } catch {
+        console.error("kis-kr-price: invalid JSON response");
+        krItems.forEach((i) => (result[priceKey(i.market, i.symbol)] = null));
+      }
+      if (data !== undefined) {
+        if (!res.ok) {
+          const msg = data.error ?? `HTTP ${res.status}`;
+          console.error("kis-kr-price:", msg);
+          krItems.forEach((i) => (result[priceKey(i.market, i.symbol)] = null));
+        } else {
+          const prices = data.prices ?? {};
+          const normalized = (s: string) => s.replace(/\D/g, "").padStart(6, "0").slice(0, 6);
+          for (const { symbol, market } of krItems) {
+            const key = priceKey(market, symbol);
+            const six = normalized(symbol);
+            const p = prices[six];
+            result[key] = typeof p === "number" && Number.isFinite(p) && p >= 0 ? p : null;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("kis-kr-price:", e);
+      krItems.forEach((i) => (result[priceKey(i.market, i.symbol)] = null));
+    }
   }
+
+  for (const { symbol, market } of usItems) {
+    result[priceKey(market, symbol)] = await getCurrentPrice(symbol, market);
+  }
+
   return result;
 }
