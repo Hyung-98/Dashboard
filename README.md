@@ -61,37 +61,11 @@ npm run storybook
 
 1. **GitHub 연결** — Amplify Console → New app → Host web app → 이 저장소 연결 후 브랜치(예: `main`) 선택.
 2. **빌드** — 루트의 `amplify.yml` 사용. Build: `npm run build`, Output: `dist`.
-3. **SPA 리라이트** — Hosting → Rewrites and redirects에서 **정적 파일(.js, .css 등)은 제외**하고 나머지 경로만 `index.html`로 보내야 합니다. `/<*>` 하나만 쓰면 JS/CSS 요청까지 HTML로 돌아가서 "MIME type text/html" 오류가 납니다. 아래 **SPA용 규칙** 사용.
+3. **SPA 라우팅** — 이 프로젝트는 **HashRouter**를 사용합니다. URL이 `/#/stocks`, `/#/expenses` 형태이므로 서버는 항상 `/`만 받고, **Amplify에서 별도 Rewrites and redirects 설정이 필요 없습니다**. 새로고침해도 404가 나지 않습니다.
 4. **환경 변수** — Build-time에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 추가.
 5. **배포** — Save and deploy. 커스텀 도메인은 Hosting → Domain management에서 설정.
 
-**SPA용 리라이트 규칙 (정적 파일 제외)** — Amplify Console → **Hosting** → **Rewrites and redirects** → **Edit**:
-
-- 기존에 `/<*>` → `/index.html` (200) 규칙이 있으면 **삭제**합니다.
-- **Add rule** → 아래 중 한 가지 방식으로 추가합니다.
-
-  **방식 A (콘솔에서 한 줄 규칙)**
-
-  - Source address:  
-    `/^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/`
-  - Target address: `/index.html`
-  - Type: **200 (Rewrite)**
-
-  **방식 B (JSON 에디터)**  
-  Rewrites and redirects에서 **Edit** → **Open in JSON editor** 후, 아래 배열로 **기존 규칙을 대체**합니다 (필요 시 다른 규칙과 합쳐서 사용). `source`는 정규식 문자열입니다.
-
-  ```json
-  [
-    {
-      "source": "/^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/",
-      "status": "200",
-      "target": "/index.html",
-      "condition": null
-    }
-  ]
-  ```
-
-  위 정규식은 `.js`, `.css`, `.svg` 등 지정한 확장자 요청은 **리라이트하지 않고** 그대로 파일로 제공하고, `/stocks`, `/`, `/dashboard` 같은 경로만 `index.html`로 보냅니다.
+(이전에 BrowserRouter + Amplify SPA 리라이트를 쓰던 경우, 리라이트가 적용되지 않아 하위 경로 새로고침 시 404가 나는 이슈가 있어 HashRouter로 전환했습니다.)
 
 ### 배포 후 사용하기 (KR 주식·DB·Auth)
 
@@ -146,8 +120,8 @@ npm run storybook
 
 | 증상                                    | 원인                                                  | 조치                                                                                                                                                                                            |
 | --------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`/stocks/` 등 경로에서 404**          | SPA 라우팅: 서버에 해당 경로 파일이 없음              | 아래 **SPA용 리라이트 규칙** 적용 (정적 파일 제외).                                                                                                                                             |
-| **JS 로드 실패, MIME type "text/html"** | `/<*>` 리라이트가 .js/.css 요청까지 index.html로 보냄 | 기존 `/<*>` 규칙을 **삭제**하고 아래 SPA용 규칙으로 **교체**.                                                                                                                                   |
+| **`/stocks/` 등 경로에서 404**          | (HashRouter 사용 시 해당 없음) 서버에 해당 경로 파일이 없으면 404 | 이 프로젝트는 HashRouter 사용으로 해결됨. 다른 호스팅에서 BrowserRouter 쓸 경우 해당 플랫폼의 SPA 리라이트 설정 필요.                                                                          |
+| **JS 로드 실패, MIME type "text/html"** | `/<*>` 리라이트가 .js/.css 요청까지 index.html로 보냄 | 기존 `/<*>` 규칙 삭제 또는 정적 파일 제외 규칙으로 교체. (이 프로젝트는 HashRouter라 Amplify 리라이트 불필요.)                                                                                  |
 | **`kis-kr-price` 502 (Bad Gateway)**    | Edge Function 미배포 또는 Secrets 미설정              | ① `npx supabase functions deploy kis-kr-price` 실행 ② Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 후 재배포 없이 반영됨 |
 
 **502가 계속 날 때** — 원인 확인 순서:

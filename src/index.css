@@ -590,7 +590,7 @@ a:hover {
 /* Table: theme-aware */
 .table-theme {
   width: 100%;
-  min-width: 320px;
+  min-width: 1280px;
   border-collapse: collapse;
   background: var(--color-card-bg);
   border-radius: 8px;
