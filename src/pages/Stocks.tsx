@@ -20,38 +20,90 @@ function formatStockMoney(value: number, market: "KR" | "US"): string {
   return market === "US" ? `$${str}` : `${str}원`;
 }
 
+/** 정렬 비교용 값 반환. 계산 컬럼(market_value, pnl, current_price, percentage)은 prices 기준. */
+function getSortValue(
+  sortKey: string,
+  row: StockHolding,
+  prices: Record<string, number | null>,
+  totalValue: number
+): string | number {
+  switch (sortKey) {
+    case "name":
+      return (row.name?.trim() || row.symbol) ?? "";
+    case "market":
+      return row.market ?? "";
+    case "quantity":
+      return Number(row.quantity);
+    case "average_buy_price":
+      return Number(row.average_buy_price);
+    case "current_price": {
+      const key = priceKey(row.market, row.symbol);
+      return prices[key] ?? 0;
+    }
+    case "market_value": {
+      const key = priceKey(row.market, row.symbol);
+      const price = prices[key];
+      if (price == null) return 0;
+      return price * Number(row.quantity);
+    }
+    case "pnl": {
+      const key = priceKey(row.market, row.symbol);
+      const price = prices[key];
+      const costBasis = Number(row.quantity) * Number(row.average_buy_price);
+      if (price == null) return 0;
+      return price * Number(row.quantity) - costBasis;
+    }
+    case "percentage": {
+      const key = priceKey(row.market, row.symbol);
+      const price = prices[key];
+      if (price == null || totalValue === 0) return 0;
+      const marketValue = price * Number(row.quantity);
+      return (marketValue / totalValue) * 100;
+    }
+    default:
+      return (row as unknown as Record<string, unknown>)[sortKey] as string | number ?? "";
+  }
+}
+
 export function Stocks() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState<StockHolding | null>(null);
   const { data: holdings = [], isLoading, isError, error } = useStockHoldings();
   const { data: prices = {}, isLoading: pricesLoading } = useStockPrices(holdings);
   const deleteStockHolding = useDeleteStockHolding();
+  const [sortKey, setSortKey] = useState<string | null>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const columns: Column<StockHolding>[] = useMemo(
     () => [
       {
         key: "name",
         header: "종목",
+        sortable: true,
         render: (row) => (row.name?.trim() ? `${row.name} (${row.symbol})` : row.symbol),
       },
       {
         key: "market",
         header: "시장",
+        sortable: true,
         render: (row) => row.market,
       },
       {
         key: "quantity",
         header: "수량",
+        sortable: true,
         render: (row) => row.quantity.toLocaleString(undefined, { maximumFractionDigits: 2 }),
       },
       {
         key: "average_buy_price",
         header: "평균 매수가",
+        sortable: true,
         render: (row) => formatStockMoney(Number(row.average_buy_price), row.market),
       },
       {
         key: "current_price",
         header: "현재가",
+        sortable: true,
         render: (row) => {
           const key = priceKey(row.market, row.symbol);
           const price = prices[key];
@@ -63,6 +115,7 @@ export function Stocks() {
       {
         key: "market_value",
         header: "평가금액",
+        sortable: true,
         render: (row) => {
           const key = priceKey(row.market, row.symbol);
           const price = prices[key];
@@ -74,6 +127,7 @@ export function Stocks() {
       {
         key: "pnl",
         header: "손익",
+        sortable: true,
         render: (row) => {
           const key = priceKey(row.market, row.symbol);
           const price = prices[key];
@@ -92,6 +146,25 @@ export function Stocks() {
               {pct.toFixed(1)}%)
             </span>
           );
+        },
+      },
+      {
+        key: "percentage",
+        header: "비중",
+        sortable: true,
+        render: (row) => {
+          const totalValue = holdings.reduce((sum, h) => {
+            const key = priceKey(h.market, h.symbol);
+            const price = prices[key];
+            if (price == null) return sum;
+            return sum + price * Number(h.quantity);
+          }, 0);
+          const key = priceKey(row.market, row.symbol);
+          const price = prices[key];
+          if (price == null || totalValue === 0) return "-";
+          const marketValue = price * Number(row.quantity);
+          const pct = (marketValue / totalValue) * 100;
+          return `${pct.toFixed(2)}%`;
         },
       },
       {
@@ -122,6 +195,38 @@ export function Stocks() {
     [prices, pricesLoading, deleteStockHolding.mutate]
   );
 
+  const totalValue = useMemo(() => {
+    return holdings.reduce((sum, h) => {
+      const key = priceKey(h.market, h.symbol);
+      const price = prices[key];
+      if (price == null) return sum;
+      return sum + price * Number(h.quantity);
+    }, 0);
+  }, [holdings, prices]);
+
+  const sortedHoldings = useMemo(() => {
+    if (!sortKey) return holdings;
+    const sorted = [...holdings].sort((a, b) => {
+      const aVal = getSortValue(sortKey, a, prices, totalValue);
+      const bVal = getSortValue(sortKey, b, prices, totalValue);
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      const aStr = String(aVal ?? "");
+      const bStr = String(bVal ?? "");
+      return sortDirection === "asc" ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    });
+    return sorted;
+  }, [holdings, sortKey, sortDirection, prices, totalValue]);
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
+    }
+  };
   if (isError) {
     return (
       <div style={{ padding: "1rem", color: "#dc2626" }}>
@@ -172,9 +277,12 @@ export function Stocks() {
       ) : (
         <Table<StockHolding>
           columns={columns}
-          data={holdings}
+          data={sortedHoldings}
           getRowKey={(row) => row.id}
           emptyMessage="등록된 주식이 없습니다. 종목 추가로 보유 종목을 등록하세요."
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSort={handleSort}
         />
       )}
     </div>
