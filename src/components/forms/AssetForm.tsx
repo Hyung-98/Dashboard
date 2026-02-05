@@ -3,26 +3,6 @@ import { useCategories, useCreateAsset, useUpdateAsset } from "@/api/hooks";
 import { Select, type SelectOption } from "@/components/ui";
 import type { AssetWithCategory } from "@/types/domain";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "0.5rem 0.75rem",
-  border: "1px solid #e2e8f0",
-  borderRadius: 6,
-  fontSize: "0.875rem",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: "0.25rem",
-  fontSize: "0.875rem",
-  fontWeight: 500,
-  color: "#374151",
-};
-
-const fieldStyle: React.CSSProperties = {
-  marginBottom: "1rem",
-};
-
 export interface AssetFormProps {
   initialData?: AssetWithCategory | null;
   onSuccess?: () => void;
@@ -88,46 +68,50 @@ export function AssetForm({ initialData, onSuccess }: AssetFormProps) {
     (updateAsset.error as Error | null)?.message ??
     null;
   const isPending = createAsset.isPending || updateAsset.isPending;
+  const errorId = "asset-form-error";
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} aria-describedby={errorMessage ? errorId : undefined}>
       {errorMessage && (
-        <div
-          style={{
-            marginBottom: "1rem",
-            padding: "0.75rem",
-            background: "#fef2f2",
-            color: "#dc2626",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-          }}
-        >
+        <div id={errorId} className="error-alert" role="alert" aria-live="assertive" style={{ marginBottom: "1rem" }}>
           {errorMessage}
         </div>
       )}
-      <div style={fieldStyle}>
-        <label style={labelStyle}>자산명 *</label>
+      <div className="form-field">
+        <label htmlFor="asset-name" className="form-label">
+          자산명 *
+        </label>
         <input
+          id="asset-name"
           type="text"
+          className="input-text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="자산명"
-          style={inputStyle}
+          aria-required="true"
+          aria-invalid={!!errorMessage}
         />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>금액 *</label>
+      <div className="form-field">
+        <label htmlFor="asset-amount" className="form-label">
+          금액 *
+        </label>
         <input
+          id="asset-amount"
           type="number"
           min={0}
+          className="input-number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="금액"
-          style={inputStyle}
+          aria-required="true"
+          aria-invalid={!!errorMessage}
         />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>카테고리</label>
+      <div className="form-field">
+        <label htmlFor="asset-category" className="form-label">
+          카테고리
+        </label>
         <Select
           options={categoryOptions}
           value={categoryId}
@@ -135,20 +119,8 @@ export function AssetForm({ initialData, onSuccess }: AssetFormProps) {
           placeholder="카테고리 선택 (선택)"
         />
       </div>
-      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem" }}>
-        <button
-          type="submit"
-          disabled={isPending}
-          style={{
-            padding: "0.5rem 1rem",
-            background: "#0f172a",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-            cursor: isPending ? "not-allowed" : "pointer",
-          }}
-        >
+      <div className="form-actions">
+        <button type="submit" className="btn-primary" disabled={isPending}>
           {isPending ? "저장 중..." : isEdit ? "수정" : "저장"}
         </button>
       </div>

@@ -15,31 +15,25 @@ export function DateRangePicker({ from, to, onChange, disabled = false }: DateRa
     onChange(from, e.target.value);
   };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div className="date-range-picker" role="group" aria-label="날짜 범위">
       <input
         type="date"
+        id="date-range-from"
         value={from}
         onChange={handleFrom}
         disabled={disabled}
-        style={{
-          padding: "0.5rem 0.75rem",
-          border: "1px solid #e2e8f0",
-          borderRadius: 6,
-          fontSize: "0.875rem",
-        }}
+        aria-label="시작일"
       />
-      <span style={{ color: "#64748b" }}>~</span>
+      <span className="date-range-sep" aria-hidden="true">
+        ~
+      </span>
       <input
         type="date"
+        id="date-range-to"
         value={to}
         onChange={handleTo}
         disabled={disabled}
-        style={{
-          padding: "0.5rem 0.75rem",
-          border: "1px solid #e2e8f0",
-          borderRadius: 6,
-          fontSize: "0.875rem",
-        }}
+        aria-label="종료일"
       />
     </div>
   );

@@ -260,7 +260,7 @@ export function Layout({ children }: LayoutProps) {
       </nav>
       <main className="app-main">
         <header className="app-header">
-          <h2 className="app-header-title">{getPageTitle(location.pathname)}</h2>
+          {/* <h2 className="app-header-title">{getPageTitle(location.pathname)}</h2> */}
           <div className="app-header-actions">
             <button
               type="button"

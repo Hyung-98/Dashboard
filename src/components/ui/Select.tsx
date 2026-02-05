@@ -32,13 +32,20 @@ export function Select<T = string>(props: SelectProps<T> | SelectMultipleProps<T
   const isMultiple = props.multiple === true;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const filtered =
-    searchable && search.trim() ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())) : options;
+    searchable && search.trim()
+      ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+      : options;
 
   useEffect(() => {
-    if (!open) setSearch("");
+    if (!open) {
+      setSearch("");
+      setHighlightedIndex(-1);
+    }
   }, [open]);
 
   useEffect(() => {
@@ -60,61 +67,101 @@ export function Select<T = string>(props: SelectProps<T> | SelectMultipleProps<T
     ? valueLabel(props.value as T)
     : "";
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setOpen(true);
+        setHighlightedIndex(0);
+      }
+      return;
+    }
+    switch (e.key) {
+      case "Escape":
+        e.preventDefault();
+        setOpen(false);
+        (containerRef.current?.querySelector("button") as HTMLElement)?.focus();
+        return;
+      case "ArrowDown":
+        e.preventDefault();
+        setHighlightedIndex((i) => (i < filtered.length - 1 ? i + 1 : 0));
+        return;
+      case "ArrowUp":
+        e.preventDefault();
+        setHighlightedIndex((i) => (i > 0 ? i - 1 : filtered.length - 1));
+        return;
+      case "Enter":
+        e.preventDefault();
+        if (highlightedIndex >= 0 && filtered[highlightedIndex]) {
+          const opt = filtered[highlightedIndex];
+          if (isMultiple) {
+            const selected = (props.value as T[]).includes(opt.value);
+            const next = selected
+              ? (props.value as T[]).filter((x) => x !== opt.value)
+              : [...(props.value as T[]), opt.value];
+            (props as SelectMultipleProps<T>).onChange(next);
+          } else {
+            (props as SelectProps<T>).onChange(opt.value);
+            setOpen(false);
+          }
+        }
+        return;
+      default:
+        break;
+    }
+  };
+
+  useEffect(() => {
+    if (open && highlightedIndex >= 0 && listRef.current) {
+      const el = listRef.current.querySelector(`[data-option-index="${highlightedIndex}"]`);
+      el?.scrollIntoView({ block: "nearest" });
+    }
+  }, [open, highlightedIndex]);
+
+  const listboxId = "select-listbox-" + Math.random().toString(36).slice(2, 9);
+
   return (
-    <div ref={containerRef} style={{ position: "relative", display: "inline-block", minWidth: 160 }}>
+    <div
+      ref={containerRef}
+      className="select-wrap"
+      onKeyDown={handleKeyDown}
+    >
       <button
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((o) => !o)}
-        style={{
-          width: "100%",
-          padding: "0.5rem 0.75rem",
-          border: "1px solid #e2e8f0",
-          borderRadius: 6,
-          background: "#fff",
-          textAlign: "left",
-          cursor: disabled ? "not-allowed" : "pointer",
-          color: displayValue ? "#0f172a" : "#94a3b8",
-          fontSize: "0.875rem",
-        }}
+        className="select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
+        aria-label={displayValue ? `${placeholder}: ${displayValue}` : placeholder}
       >
-        {displayValue || placeholder}
-        <span style={{ float: "right", marginLeft: 8 }}>{open ? "▲" : "▼"}</span>
+        <span className={displayValue ? "" : "select-placeholder"}>
+          {displayValue || placeholder}
+        </span>
+        <span aria-hidden="true">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
         <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            marginTop: 4,
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 6,
-            boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
-            zIndex: 50,
-            maxHeight: 240,
-            overflow: "auto",
-          }}
+          ref={listRef}
+          id={listboxId}
+          role="listbox"
+          className="select-dropdown"
+          aria-multiselectable={isMultiple || undefined}
+          tabIndex={-1}
         >
           {searchable && (
             <input
               type="text"
+              className="select-search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="검색..."
-              style={{
-                width: "100%",
-                padding: "0.5rem 0.75rem",
-                border: "none",
-                borderBottom: "1px solid #e2e8f0",
-                outline: "none",
-                fontSize: "0.875rem",
-              }}
+              aria-label="옵션 검색"
+              onKeyDown={(e) => e.stopPropagation()}
             />
           )}
-          {filtered.map((opt) => {
+          {filtered.map((opt, idx) => {
             const selected = isMultiple
               ? (props.value as T[]).includes(opt.value)
               : (props.value as T | null) === opt.value;
@@ -122,14 +169,12 @@ export function Select<T = string>(props: SelectProps<T> | SelectMultipleProps<T
               <button
                 key={String(opt.value)}
                 type="button"
+                role="option"
+                aria-selected={selected}
+                data-option-index={idx}
+                className="select-option"
                 style={{
-                  width: "100%",
-                  padding: "0.5rem 0.75rem",
-                  border: "none",
-                  background: selected ? "#f1f5f9" : "transparent",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  fontSize: "0.875rem",
+                  background: highlightedIndex === idx ? "var(--color-bg-secondary)" : undefined,
                 }}
                 onClick={() => {
                   if (isMultiple) {
@@ -142,6 +187,7 @@ export function Select<T = string>(props: SelectProps<T> | SelectMultipleProps<T
                     setOpen(false);
                   }
                 }}
+                onMouseEnter={() => setHighlightedIndex(idx)}
               >
                 {renderOption ? renderOption(opt) : opt.label}
               </button>

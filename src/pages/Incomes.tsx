@@ -6,14 +6,6 @@ import { Table, Select, DateRangePicker, TableSkeleton, Modal } from "@/componen
 import { IncomeForm } from "@/components/forms";
 import type { Column } from "@/components/ui";
 import type { IncomeWithCategory } from "@/types/domain";
-const buttonStyle = {
-  padding: "0.25rem 0.5rem",
-  fontSize: "0.75rem",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer" as const,
-  marginRight: 4,
-};
 
 export function Incomes() {
   const [filters, setFilters] = useIncomeFilters();
@@ -53,16 +45,12 @@ export function Incomes() {
       header: "작업",
       render: (row) => (
         <span onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            style={{ ...buttonStyle, background: "#e2e8f0", color: "#0f172a" }}
-            onClick={() => setEditingIncome(row)}
-          >
+          <button type="button" className="btn-edit" onClick={() => setEditingIncome(row)}>
             수정
           </button>
           <button
             type="button"
-            style={{ ...buttonStyle, background: "#fef2f2", color: "#dc2626" }}
+            className="btn-danger"
             onClick={() => {
               if (window.confirm("이 수입을 삭제할까요?")) deleteIncome.mutate(row.id);
             }}
@@ -108,7 +96,7 @@ export function Incomes() {
 
   if (isError) {
     return (
-      <div style={{ padding: "1rem", color: "#dc2626" }}>
+      <div className="error-alert" role="alert">
         <p>오류: {error?.message ?? "데이터를 불러오지 못했습니다."}</p>
       </div>
     );
@@ -118,19 +106,7 @@ export function Incomes() {
     <div>
       <header className="page-header">
         <h1>수입 목록</h1>
-        <button
-          type="button"
-          onClick={() => setAddModalOpen(true)}
-          style={{
-            padding: "0.5rem 1rem",
-            background: "#0f172a",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-            cursor: "pointer",
-          }}
-        >
+        <button type="button" className="btn-primary" onClick={() => setAddModalOpen(true)}>
           수입 추가
         </button>
       </header>
@@ -159,39 +135,29 @@ export function Incomes() {
           onChange={(value) => setFilters({ categoryId: value })}
           placeholder="카테고리"
         />
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="filter-group">
           <input
             type="number"
+            className="input-number filter-input"
             placeholder="최소 금액"
             value={filters.minAmount ?? ""}
             onChange={(e) => {
               const v = e.target.value;
               setFilters({ minAmount: v === "" ? null : Number(v) });
             }}
-            style={{
-              width: 120,
-              padding: "0.5rem 0.75rem",
-              border: "1px solid #e2e8f0",
-              borderRadius: 6,
-              fontSize: "0.875rem",
-            }}
+            aria-label="최소 금액"
           />
-          <span style={{ color: "#64748b" }}>~</span>
+          <span className="date-range-sep" aria-hidden="true">~</span>
           <input
             type="number"
+            className="input-number filter-input"
             placeholder="최대 금액"
             value={filters.maxAmount ?? ""}
             onChange={(e) => {
               const v = e.target.value;
               setFilters({ maxAmount: v === "" ? null : Number(v) });
             }}
-            style={{
-              width: 120,
-              padding: "0.5rem 0.75rem",
-              border: "1px solid #e2e8f0",
-              borderRadius: 6,
-              fontSize: "0.875rem",
-            }}
+            aria-label="최대 금액"
           />
         </div>
       </div>

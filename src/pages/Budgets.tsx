@@ -6,15 +6,6 @@ import type { Column } from "@/components/ui";
 import type { BudgetWithCategory } from "@/types/domain";
 import { DEFAULT_EXPENSE_FILTERS } from "@/types/filters";
 
-const buttonStyle = {
-  padding: "0.25rem 0.5rem",
-  fontSize: "0.75rem",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer" as const,
-  marginRight: 4,
-};
-
 type BudgetRow = BudgetWithCategory & { spent: number; remaining: number; usagePercent: number };
 
 function isExpenseInBudgetPeriod(occurredAt: string, periodStart: string, period: "monthly" | "yearly"): boolean {
@@ -80,14 +71,18 @@ export function Budgets() {
       key: "remaining",
       header: "잔여",
       render: (row) => (
-        <span style={{ color: row.remaining >= 0 ? undefined : "#dc2626" }}>{row.remaining.toLocaleString()}원</span>
+        <span className={row.remaining >= 0 ? undefined : "text-trend-down"}>{row.remaining.toLocaleString()}원</span>
       ),
     },
     {
       key: "usagePercent",
       header: "사용률",
       render: (row) => (
-        <span style={{ color: row.usagePercent > 100 ? "#dc2626" : row.usagePercent > 80 ? "#f59e0b" : undefined }}>
+        <span
+          className={
+            row.usagePercent > 100 ? "text-trend-down" : row.usagePercent > 80 ? "text-warning" : undefined
+          }
+        >
           {row.usagePercent.toFixed(0)}%
         </span>
       ),
@@ -97,16 +92,12 @@ export function Budgets() {
       header: "작업",
       render: (row) => (
         <span onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            style={{ ...buttonStyle, background: "#e2e8f0", color: "#0f172a" }}
-            onClick={() => setEditingBudget(row)}
-          >
+          <button type="button" className="btn-edit" onClick={() => setEditingBudget(row)}>
             수정
           </button>
           <button
             type="button"
-            style={{ ...buttonStyle, background: "#fef2f2", color: "#dc2626" }}
+            className="btn-danger"
             onClick={() => {
               if (window.confirm("이 예산을 삭제할까요?")) deleteBudget.mutate(row.id);
             }}
@@ -120,7 +111,7 @@ export function Budgets() {
 
   if (isError) {
     return (
-      <div style={{ padding: "1rem", color: "#dc2626" }}>
+      <div className="error-alert" role="alert">
         <p>오류: {error?.message ?? "데이터를 불러오지 못했습니다."}</p>
       </div>
     );
@@ -130,19 +121,7 @@ export function Budgets() {
     <div>
       <header className="page-header">
         <h1>예산</h1>
-        <button
-          type="button"
-          onClick={() => setAddModalOpen(true)}
-          style={{
-            padding: "0.5rem 1rem",
-            background: "#0f172a",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-            cursor: "pointer",
-          }}
-        >
+        <button type="button" className="btn-primary" onClick={() => setAddModalOpen(true)}>
           예산 추가
         </button>
       </header>

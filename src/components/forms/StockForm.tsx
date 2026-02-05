@@ -3,26 +3,6 @@ import { useCreateStockHolding, useUpdateStockHolding } from "@/api/hooks";
 import { Select, type SelectOption } from "@/components/ui";
 import type { StockHolding } from "@/types/domain";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "0.5rem 0.75rem",
-  border: "1px solid #e2e8f0",
-  borderRadius: 6,
-  fontSize: "0.875rem",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: "0.25rem",
-  fontSize: "0.875rem",
-  fontWeight: 500,
-  color: "#374151",
-};
-
-const fieldStyle: React.CSSProperties = {
-  marginBottom: "1rem",
-};
-
 const marketOptions: SelectOption[] = [
   { value: "KR", label: "한국 (KR)" },
   { value: "US", label: "미국 (US)" },
@@ -102,35 +82,34 @@ export function StockForm({ initialData, onSuccess }: StockFormProps) {
     (updateStockHolding.error as Error | null)?.message ??
     null;
   const isPending = createStockHolding.isPending || updateStockHolding.isPending;
+  const errorId = "stock-form-error";
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} aria-describedby={errorMessage ? errorId : undefined}>
       {errorMessage && (
-        <div
-          style={{
-            marginBottom: "1rem",
-            padding: "0.75rem",
-            background: "#fef2f2",
-            color: "#dc2626",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-          }}
-        >
+        <div id={errorId} className="error-alert" role="alert" aria-live="assertive" style={{ marginBottom: "1rem" }}>
           {errorMessage}
         </div>
       )}
-      <div style={fieldStyle}>
-        <label style={labelStyle}>종목코드(티커) *</label>
+      <div className="form-field">
+        <label htmlFor="stock-symbol" className="form-label">
+          종목코드(티커) *
+        </label>
         <input
+          id="stock-symbol"
           type="text"
+          className="input-text"
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
           placeholder="예: 005930, AAPL"
-          style={inputStyle}
+          aria-required="true"
+          aria-invalid={!!errorMessage}
         />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>시장 *</label>
+      <div className="form-field">
+        <label htmlFor="stock-market" className="form-label">
+          시장 *
+        </label>
         <Select
           options={marketOptions}
           value={market}
@@ -138,64 +117,68 @@ export function StockForm({ initialData, onSuccess }: StockFormProps) {
           placeholder="시장 선택"
         />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>종목명 (선택)</label>
+      <div className="form-field">
+        <label htmlFor="stock-name" className="form-label">
+          종목명 (선택)
+        </label>
         <input
+          id="stock-name"
           type="text"
+          className="input-text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="예: 삼성전자, Apple"
-          style={inputStyle}
         />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>보유 수량 *</label>
+      <div className="form-field">
+        <label htmlFor="stock-quantity" className="form-label">
+          보유 수량 *
+        </label>
         <input
+          id="stock-quantity"
           type="number"
           min={0}
           step="any"
+          className="input-number"
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
           placeholder="수량"
-          style={inputStyle}
+          aria-required="true"
+          aria-invalid={!!errorMessage}
         />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>평균 매수가 * {market === "US" ? "(달러 기준)" : "(원 기준)"}</label>
+      <div className="form-field">
+        <label htmlFor="stock-average-buy-price" className="form-label">
+          평균 매수가 * {market === "US" ? "(달러 기준)" : "(원 기준)"}
+        </label>
         <input
+          id="stock-average-buy-price"
           type="number"
           min={0}
           step="any"
+          className="input-number"
           value={averageBuyPrice}
           onChange={(e) => setAverageBuyPrice(e.target.value)}
           placeholder={market === "US" ? "달러 단가 (예: 150.25)" : "원 단가"}
-          style={inputStyle}
+          aria-required="true"
+          aria-invalid={!!errorMessage}
         />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>메모</label>
+      <div className="form-field">
+        <label htmlFor="stock-memo" className="form-label">
+          메모
+        </label>
         <input
+          id="stock-memo"
           type="text"
+          className="input-text"
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
           placeholder="비고"
-          style={inputStyle}
         />
       </div>
-      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem" }}>
-        <button
-          type="submit"
-          disabled={isPending}
-          style={{
-            padding: "0.5rem 1rem",
-            background: "#0f172a",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-            cursor: isPending ? "not-allowed" : "pointer",
-          }}
-        >
+      <div className="form-actions">
+        <button type="submit" className="btn-primary" disabled={isPending}>
           {isPending ? "저장 중..." : isEdit ? "수정" : "저장"}
         </button>
       </div>

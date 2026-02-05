@@ -4,26 +4,6 @@ import { Select, type SelectOption } from "@/components/ui";
 import type { BudgetPeriod } from "@/types/database";
 import type { BudgetWithCategory } from "@/types/domain";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "0.5rem 0.75rem",
-  border: "1px solid #e2e8f0",
-  borderRadius: 6,
-  fontSize: "0.875rem",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: "0.25rem",
-  fontSize: "0.875rem",
-  fontWeight: 500,
-  color: "#374151",
-};
-
-const fieldStyle: React.CSSProperties = {
-  marginBottom: "1rem",
-};
-
 export interface BudgetFormProps {
   initialData?: BudgetWithCategory | null;
   onSuccess?: () => void;
@@ -96,63 +76,68 @@ export function BudgetForm({ initialData, onSuccess }: BudgetFormProps) {
     (updateBudget.error as Error | null)?.message ??
     null;
   const isPending = createBudget.isPending || updateBudget.isPending;
+  const errorId = "budget-form-error";
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} aria-describedby={errorMessage ? errorId : undefined}>
       {errorMessage && (
-        <div
-          style={{
-            marginBottom: "1rem",
-            padding: "0.75rem",
-            background: "#fef2f2",
-            color: "#dc2626",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-          }}
-        >
+        <div id={errorId} className="error-alert" role="alert" aria-live="assertive" style={{ marginBottom: "1rem" }}>
           {errorMessage}
         </div>
       )}
-      <div style={fieldStyle}>
-        <label style={labelStyle}>카테고리 *</label>
+      <div className="form-field">
+        <label htmlFor="budget-category" className="form-label">
+          카테고리 *
+        </label>
         <Select options={categoryOptions} value={categoryId} onChange={setCategoryId} placeholder="카테고리 선택" />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>금액 *</label>
+      <div className="form-field">
+        <label htmlFor="budget-amount" className="form-label">
+          금액 *
+        </label>
         <input
+          id="budget-amount"
           type="number"
           min={1}
+          className="input-number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="예산 금액"
-          style={inputStyle}
+          aria-required="true"
+          aria-invalid={!!errorMessage}
         />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>주기 *</label>
-        <select value={period} onChange={(e) => setPeriod(e.target.value as BudgetPeriod)} style={inputStyle}>
+      <div className="form-field">
+        <label htmlFor="budget-period" className="form-label">
+          주기 *
+        </label>
+        <select
+          id="budget-period"
+          className="input-text"
+          value={period}
+          onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}
+          aria-required="true"
+        >
           <option value="monthly">월</option>
           <option value="yearly">년</option>
         </select>
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>기간 시작일 *</label>
-        <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} style={inputStyle} />
+      <div className="form-field">
+        <label htmlFor="budget-period-start" className="form-label">
+          기간 시작일 *
+        </label>
+        <input
+          id="budget-period-start"
+          type="date"
+          className="input-text"
+          value={periodStart}
+          onChange={(e) => setPeriodStart(e.target.value)}
+          aria-required="true"
+          aria-invalid={!!errorMessage}
+        />
       </div>
-      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem" }}>
-        <button
-          type="submit"
-          disabled={isPending}
-          style={{
-            padding: "0.5rem 1rem",
-            background: "#0f172a",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-            cursor: isPending ? "not-allowed" : "pointer",
-          }}
-        >
+      <div className="form-actions">
+        <button type="submit" className="btn-primary" disabled={isPending}>
           {isPending ? "저장 중..." : isEdit ? "수정" : "저장"}
         </button>
       </div>

@@ -3,26 +3,6 @@ import { useCreateCategory, useUpdateCategory } from "@/api/hooks";
 import type { Category } from "@/types/domain";
 import type { CategoryType } from "@/types/database";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "0.5rem 0.75rem",
-  border: "1px solid #e2e8f0",
-  borderRadius: 6,
-  fontSize: "0.875rem",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: "0.25rem",
-  fontSize: "0.875rem",
-  fontWeight: 500,
-  color: "#374151",
-};
-
-const fieldStyle: React.CSSProperties = {
-  marginBottom: "1rem",
-};
-
 export interface CategoryFormProps {
   initialData?: Category | null;
   onSuccess?: () => void;
@@ -70,55 +50,48 @@ export function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
     (updateCategoryMutation.error as Error | null)?.message ??
     null;
   const isPending = createCategoryMutation.isPending || updateCategoryMutation.isPending;
+  const errorId = "category-form-error";
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} aria-describedby={errorMessage ? errorId : undefined}>
       {errorMessage && (
-        <div
-          style={{
-            marginBottom: "1rem",
-            padding: "0.75rem",
-            background: "#fef2f2",
-            color: "#dc2626",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-          }}
-        >
+        <div id={errorId} className="error-alert" role="alert" aria-live="assertive" style={{ marginBottom: "1rem" }}>
           {errorMessage}
         </div>
       )}
-      <div style={fieldStyle}>
-        <label style={labelStyle}>이름 *</label>
+      <div className="form-field">
+        <label htmlFor="category-name" className="form-label">
+          이름 *
+        </label>
         <input
+          id="category-name"
           type="text"
+          className="input-text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="카테고리 이름"
-          style={inputStyle}
+          aria-required="true"
+          aria-invalid={!!errorMessage}
         />
       </div>
-      <div style={fieldStyle}>
-        <label style={labelStyle}>유형 *</label>
-        <select value={type} onChange={(e) => setType(e.target.value as CategoryType)} style={inputStyle}>
+      <div className="form-field">
+        <label htmlFor="category-type" className="form-label">
+          유형 *
+        </label>
+        <select
+          id="category-type"
+          className="input-text"
+          value={type}
+          onChange={(e) => setType(e.target.value as CategoryType)}
+          aria-required="true"
+        >
           <option value="expense">지출</option>
           <option value="asset">자산</option>
           <option value="income">수입</option>
         </select>
       </div>
-      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem" }}>
-        <button
-          type="submit"
-          disabled={isPending}
-          style={{
-            padding: "0.5rem 1rem",
-            background: "#0f172a",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontSize: "0.875rem",
-            cursor: isPending ? "not-allowed" : "pointer",
-          }}
-        >
+      <div className="form-actions">
+        <button type="submit" className="btn-primary" disabled={isPending}>
           {isPending ? "저장 중..." : isEdit ? "수정" : "저장"}
         </button>
       </div>

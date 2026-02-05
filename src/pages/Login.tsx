@@ -2,23 +2,6 @@ import { useState } from "react";
 import { getAuthErrorMessage } from "@/lib/authErrors";
 import { supabase } from "@/lib/supabase";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "0.75rem 1rem",
-  border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  fontSize: "1rem",
-  boxSizing: "border-box",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  marginBottom: "0.375rem",
-  fontSize: "0.875rem",
-  fontWeight: 500,
-  color: "#374151",
-};
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validateEmail(value: string): string | null {
@@ -147,65 +130,35 @@ export function Login() {
     }
   };
 
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 400,
-          padding: "2rem",
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)",
-        }}
-      >
-        <h1 style={{ margin: "0 0 1.5rem", fontSize: "1.5rem", fontWeight: 600, color: "#0f172a" }}>
-          {isSignUp ? "회원가입" : "로그인"}
-        </h1>
+  const errorId = "login-error";
+  const messageId = "login-message";
 
-        <form onSubmit={handleSubmit}>
+  return (
+    <div className="login-container">
+      <div className="login-card">
+        <h1>{isSignUp ? "회원가입" : "로그인"}</h1>
+
+        <form onSubmit={handleSubmit} aria-describedby={error ? errorId : message ? messageId : undefined}>
           {error && (
-            <div
-              style={{
-                marginBottom: "1rem",
-                padding: "0.75rem",
-                background: "#fef2f2",
-                color: "#dc2626",
-                borderRadius: 8,
-                fontSize: "0.875rem",
-              }}
-            >
+            <div id={errorId} className="error-alert" role="alert" aria-live="assertive" style={{ marginBottom: "1rem" }}>
               {error}
             </div>
           )}
           {message && (
-            <div
-              style={{
-                marginBottom: "1rem",
-                padding: "0.75rem",
-                background: "#f0fdf4",
-                color: "#16a34a",
-                borderRadius: 8,
-                fontSize: "0.875rem",
-              }}
-            >
+            <div id={messageId} className="message-success" role="status" aria-live="polite">
               {message}
             </div>
           )}
 
-          <div style={{ marginBottom: "1rem" }}>
-            <label style={labelStyle}>이메일</label>
+          <div className="form-field">
+            <label htmlFor="login-email" className="form-label">
+              이메일
+            </label>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <input
+                id="login-email"
                 type="email"
+                className="input-text"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -217,103 +170,85 @@ export function Login() {
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
-                style={{ ...inputStyle, flex: 1 }}
+                aria-required="true"
+                aria-invalid={!!error}
+                style={{ flex: 1 }}
               />
               {isSignUp && (
                 <button
                   type="button"
+                  className="btn-secondary"
                   disabled={loading || emailCheckStatus === "checking"}
                   onClick={handleCheckEmailDuplicate}
-                  style={{
-                    padding: "0.75rem 1rem",
-                    whiteSpace: "nowrap",
-                    background: "#64748b",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 8,
-                    fontSize: "0.875rem",
-                    fontWeight: 500,
-                    cursor: loading || emailCheckStatus === "checking" ? "not-allowed" : "pointer",
-                  }}
+                  style={{ whiteSpace: "nowrap", padding: "0.75rem 1rem" }}
                 >
                   {emailCheckStatus === "checking" ? "확인 중..." : "중복 확인"}
                 </button>
               )}
             </div>
             {isSignUp && emailCheckStatus === "available" && (
-              <div
-                style={{
-                  marginTop: "0.375rem",
-                  fontSize: "0.8125rem",
-                  color: "#16a34a",
-                }}
-              >
+              <div className="login-helper success" role="status">
                 사용 가능한 이메일입니다.
               </div>
             )}
             {isSignUp && emailCheckStatus === "taken" && (
-              <div
-                style={{
-                  marginTop: "0.375rem",
-                  fontSize: "0.8125rem",
-                  color: "#dc2626",
-                }}
-              >
+              <div className="login-helper error" role="alert">
                 이미 사용 중인 이메일입니다.
               </div>
             )}
           </div>
-          <div style={{ marginBottom: "1rem" }}>
-            <label style={labelStyle}>
+          <div className="form-field">
+            <label htmlFor="login-password" className="form-label">
               비밀번호
               {isSignUp && (
-                <span style={{ fontWeight: 400, color: "#64748b", fontSize: "0.8125rem" }}>
+                <span style={{ fontWeight: 400, color: "var(--color-text-secondary)", fontSize: "0.8125rem" }}>
                   {" "}
                   (8자 이상, 영문·숫자·특수문자 포함)
                 </span>
               )}
             </label>
             <input
+              id="login-password"
               type="password"
+              className="input-text"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
               minLength={isSignUp ? 8 : 6}
               autoComplete={isSignUp ? "new-password" : "current-password"}
-              style={inputStyle}
+              aria-required="true"
+              aria-invalid={!!error}
             />
           </div>
           {isSignUp && (
             <>
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={labelStyle}>비밀번호 확인</label>
+              <div className="form-field">
+                <label htmlFor="login-password-confirm" className="form-label">
+                  비밀번호 확인
+                </label>
                 <input
+                  id="login-password-confirm"
                   type="password"
+                  className="input-text"
                   value={passwordConfirm}
                   onChange={(e) => setPasswordConfirm(e.target.value)}
                   placeholder="비밀번호를 다시 입력하세요"
                   required={isSignUp}
                   autoComplete="new-password"
-                  style={inputStyle}
+                  aria-required="true"
+                  aria-invalid={!!error}
                 />
               </div>
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    fontSize: "0.875rem",
-                    color: "#374151",
-                    cursor: "pointer",
-                  }}
-                >
+              <div className="form-field" style={{ marginBottom: "1.25rem" }}>
+                <label className="checkbox-label" htmlFor="login-terms">
                   <input
+                    id="login-terms"
                     type="checkbox"
                     checked={termsAgreed}
                     onChange={(e) => setTermsAgreed(e.target.checked)}
-                    style={{ width: "1rem", height: "1rem" }}
+                    aria-required="true"
+                    aria-invalid={!!error}
                   />
                   이용약관 및 개인정보 수집·이용에 동의합니다
                 </label>
@@ -321,27 +256,14 @@ export function Login() {
             </>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "0.75rem 1rem",
-              background: "#0f172a",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              fontSize: "1rem",
-              fontWeight: 500,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
+          <button type="submit" className="btn-primary" disabled={loading} style={{ width: "100%", padding: "0.75rem 1rem" }}>
             {loading ? "처리 중..." : isSignUp ? "가입" : "로그인"}
           </button>
         </form>
 
         <button
           type="button"
+          className="btn-secondary-block"
           onClick={() => {
             setIsSignUp((v) => !v);
             setError(null);
@@ -351,36 +273,11 @@ export function Login() {
             setEmailCheckStatus(null);
             setEmailCheckedAt("");
           }}
-          style={{
-            marginTop: "1rem",
-            width: "100%",
-            padding: "0.5rem",
-            background: "none",
-            border: "none",
-            fontSize: "0.875rem",
-            color: "#64748b",
-            cursor: "pointer",
-          }}
         >
           {isSignUp ? "이미 계정이 있으신가요? 로그인" : "계정이 없으신가요? 회원가입"}
         </button>
 
-        <button
-          type="button"
-          disabled={loading}
-          onClick={handleAnonymousLogin}
-          style={{
-            marginTop: "1rem",
-            width: "100%",
-            padding: "0.5rem",
-            background: "none",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            fontSize: "0.875rem",
-            color: "#64748b",
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
+        <button type="button" className="btn-outline-block" disabled={loading} onClick={handleAnonymousLogin}>
           익명으로 체험하기
         </button>
       </div>
