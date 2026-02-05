@@ -29,9 +29,9 @@ const pathToTitle: Record<string, string> = {
   "/categories": "카테고리",
 };
 
-function getPageTitle(pathname: string): string {
-  return pathToTitle[pathname] ?? "대시보드";
-}
+// function getPageTitle(pathname: string): string {
+//   return pathToTitle[pathname] ?? "대시보드";
+// }
 
 function NavIcon({ name }: { name: string }) {
   const className = "nav-icon";
