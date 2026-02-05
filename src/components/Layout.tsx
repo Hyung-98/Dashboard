@@ -18,16 +18,16 @@ const nav = [
   { to: "/categories", label: "카테고리", icon: "category" },
 ];
 
-const pathToTitle: Record<string, string> = {
-  "/": "대시보드",
-  "/dashboard": "대시보드",
-  "/expenses": "지출",
-  "/incomes": "수입",
-  "/budgets": "예산",
-  "/assets": "자산",
-  "/stocks": "주식",
-  "/categories": "카테고리",
-};
+// const pathToTitle: Record<string, string> = {
+//   "/": "대시보드",
+//   "/dashboard": "대시보드",
+//   "/expenses": "지출",
+//   "/incomes": "수입",
+//   "/budgets": "예산",
+//   "/assets": "자산",
+//   "/stocks": "주식",
+//   "/categories": "카테고리",
+// };
 
 // function getPageTitle(pathname: string): string {
 //   return pathToTitle[pathname] ?? "대시보드";
