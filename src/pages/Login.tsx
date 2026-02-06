@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { isAuthApiError } from "@supabase/supabase-js";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { ANONYMOUS_SIGNIN_SERVER_ERROR_MESSAGE, getAuthErrorMessage } from "@/lib/authErrors";
 import { supabase } from "@/lib/supabase";
 
@@ -31,6 +32,13 @@ export function Login() {
   const [emailCheckStatus, setEmailCheckStatus] = useState<null | "checking" | "available" | "taken" | "error">(null);
   const [emailCheckedAt, setEmailCheckedAt] = useState("");
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileInstance | null>(null);
+  const anonymousCaptchaRef = useRef<TurnstileInstance | null>(null);
+
+  // CAPTCHA 활성화 여부 확인
+  const captchaSiteKey = import.meta.env.VITE_CAPTCHA_SITE_KEY;
+  const captchaEnabled = import.meta.env.VITE_CAPTCHA_ENABLED === "true" && captchaSiteKey;
 
   const handleCheckEmailDuplicate = async () => {
     const emailError = validateEmail(email);
@@ -99,12 +107,27 @@ export function Login() {
       }
     }
 
+    // CAPTCHA 검증 (활성화된 경우)
+    if (captchaEnabled && isSignUp && !captchaToken) {
+      setError("보안 검증을 완료해 주세요.");
+      return;
+    }
+
     setLoading(true);
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({ email, password });
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          ...(captchaEnabled && captchaToken ? { options: { captchaToken } } : {}),
+        });
         if (signUpError) throw signUpError;
         setMessage("가입 확인 메일을 보냈습니다. 이메일에서 링크를 눌러 확인해 주세요.");
+        // CAPTCHA 리셋
+        if (captchaEnabled) {
+          captchaRef.current?.reset();
+          setCaptchaToken(null);
+        }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
@@ -112,6 +135,11 @@ export function Login() {
       }
     } catch (err) {
       setError(getAuthErrorMessage(err));
+      // 에러 발생 시 CAPTCHA 리셋
+      if (captchaEnabled && isSignUp) {
+        captchaRef.current?.reset();
+        setCaptchaToken(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -143,12 +171,26 @@ export function Login() {
   const handleAnonymousLogin = async () => {
     setError(null);
     setMessage(null);
+
+    // CAPTCHA 검증 (활성화된 경우)
+    if (captchaEnabled && !captchaToken) {
+      setError("보안 검증을 완료해 주세요.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const { data: { session }, error: anonError } = await supabase.auth.signInAnonymously();
+      const { data: { session }, error: anonError } = await supabase.auth.signInAnonymously(
+        captchaEnabled && captchaToken ? { options: { captchaToken } } : undefined
+      );
       if (anonError) throw anonError;
       if (!session) throw new Error("Anonymous login failed");
       // 세션 설정됨 → AuthInit의 onAuthStateChange가 감지해 앱으로 전환
+      // CAPTCHA 리셋
+      if (captchaEnabled) {
+        anonymousCaptchaRef.current?.reset();
+        setCaptchaToken(null);
+      }
     } catch (err) {
       // 500 on signup often means Anonymous Sign-In is disabled in Supabase Dashboard
       const message: string =
@@ -156,6 +198,11 @@ export function Login() {
           ? ANONYMOUS_SIGNIN_SERVER_ERROR_MESSAGE
           : getAuthErrorMessage(err);
       setError(message);
+      // 에러 발생 시 CAPTCHA 리셋
+      if (captchaEnabled) {
+        anonymousCaptchaRef.current?.reset();
+        setCaptchaToken(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -334,6 +381,22 @@ export function Login() {
                   이용약관 및 개인정보 수집·이용에 동의합니다
                 </label>
               </div>
+              {captchaEnabled && (
+                <div className="form-field" style={{ marginBottom: "1rem" }}>
+                  <Turnstile
+                    ref={captchaRef}
+                    siteKey={captchaSiteKey}
+                    onSuccess={(token) => setCaptchaToken(token)}
+                    onError={() => {
+                      setCaptchaToken(null);
+                      setError("보안 검증에 실패했습니다. 다시 시도해 주세요.");
+                    }}
+                    onExpire={() => {
+                      setCaptchaToken(null);
+                    }}
+                  />
+                </div>
+              )}
             </>
           )}
 
@@ -373,6 +436,22 @@ export function Login() {
           {isSignUp ? "이미 계정이 있으신가요? 로그인" : "계정이 없으신가요? 회원가입"}
         </button>
 
+        {captchaEnabled && (
+          <div style={{ marginBottom: "1rem" }}>
+            <Turnstile
+              ref={anonymousCaptchaRef}
+              siteKey={captchaSiteKey}
+              onSuccess={(token) => setCaptchaToken(token)}
+              onError={() => {
+                setCaptchaToken(null);
+                setError("보안 검증에 실패했습니다. 다시 시도해 주세요.");
+              }}
+              onExpire={() => {
+                setCaptchaToken(null);
+              }}
+            />
+          </div>
+        )}
         <button
           type="button"
           className="btn-outline-block"

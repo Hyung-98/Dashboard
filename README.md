@@ -59,6 +59,8 @@ npm run build:analyze
 | ---------------------------- | ------------------------------------------------------------------------------ |
 | `VITE_SUPABASE_URL`          | Supabase 프로젝트 URL                                                          |
 | `VITE_SUPABASE_ANON_KEY`     | Supabase anon (public) key                                                     |
+| `VITE_CAPTCHA_SITE_KEY`      | (선택) Cloudflare Turnstile Site Key. 배포 시 봇/남용 방지용 CAPTCHA. [발급](https://dash.cloudflare.com/). 로컬 테스트 시 `1x00000000000000000000AA` (항상 통과) 사용 가능 |
+| `VITE_CAPTCHA_ENABLED`       | (선택) CAPTCHA 활성화 여부 (`'true'` 또는 `'false'`, 기본값: `false`). 개발 환경에서는 `false` 권장 (로컬 테스트 시 `true` + 테스트 키 사용 가능) |
 | `VITE_ALPHA_VANTAGE_API_KEY` | (선택) 미국 주식 시세용. [Alpha Vantage](https://www.alphavantage.co/) 무료 키 |
 | `KIS_APP_KEY`                | (선택) 한국투자증권 KIS API 실전투자 앱키. 시세·주문 등 연동 시 사용           |
 | `KIS_APP_SECRET`             | (선택) 한국투자증권 KIS API 실전투자 앱시크릿. 백엔드에서만 사용 권장          |
@@ -85,6 +87,7 @@ npm run build:analyze
 | 2    | Edge Function Secrets | Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 (모의투자 시 `MOK_KIS_APP_KEY`, `MOK_KIS_APP_SECRET` 추가)                                                  |
 | 3    | 프론트엔드 환경 변수  | Amplify(또는 사용 중인 호스팅) Build 설정에서 **클라우드** Supabase 값 사용: `VITE_SUPABASE_URL=https://<프로젝트_REF>.supabase.co`, `VITE_SUPABASE_ANON_KEY=<클라우드_anon_key>` (Dashboard → Project settings → API에서 확인) |
 | 4    | DB 스키마             | 원격 DB에 마이그레이션 적용: `npx supabase link --project-ref <REF>` 후 `npx supabase db push`                                                                                                                                  |
+| 5    | CAPTCHA 설정 (권장)    | 배포 시 봇/남용 방지: [Cloudflare Dashboard](https://dash.cloudflare.com/)에서 Turnstile Site Key 발급 → 배포 환경 변수에 `VITE_CAPTCHA_SITE_KEY`와 `VITE_CAPTCHA_ENABLED=true` 설정 → [Supabase Dashboard](https://supabase.com/dashboard/project/_/auth/protection) → Authentication → Bot and Abuse Protection에서 CAPTCHA 활성화 및 Secret Key 설정 |
 
 - **로컬에서만** 개발할 때는 `.env.local`에 로컬 URL(`http://127.0.0.1:54321`)을 두고, **배포 빌드**할 때는 호스팅 쪽 환경 변수에 클라우드 URL을 넣으면 됩니다. (`.env.local`은 빌드 서버에 없으므로 Amplify 등에 반드시 설정)
 - KR 종목 현재가가 안 나오면: Edge Function 배포 여부, Secrets 등록, 그리고 프론트가 **클라우드** Supabase URL을 쓰는지 확인하세요.
@@ -118,7 +121,22 @@ npm run build:analyze
    - `.env.local`에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등이 있어야 합니다
    - 로컬 함수는 `http://127.0.0.1:54321/functions/v1/kis-kr-price`에서 실행됩니다
 
-5. **주의사항**
+5. **CAPTCHA 테스트** (선택)
+   - 로컬에서 CAPTCHA를 테스트하려면 Cloudflare Turnstile의 **테스트 키**를 사용할 수 있습니다
+   - `.env.local`에 다음을 추가:
+     ```
+     VITE_CAPTCHA_SITE_KEY=1x00000000000000000000AA
+     VITE_CAPTCHA_ENABLED=true
+     ```
+   - 테스트 키 설명:
+     - `1x00000000000000000000AA`: 항상 통과 (보이는 위젯)
+     - `2x00000000000000000000AB`: 항상 실패 (보이는 위젯)
+     - `1x00000000000000000000BB`: 항상 통과 (보이지 않는 위젯)
+     - `3x00000000000000000000FF`: 강제 인터랙티브 챌린지 (보이는 위젯)
+   - Supabase Dashboard에서도 테스트 Secret Key (`1x0000000000000000000000000000000AA`)를 사용할 수 있습니다
+   - **참고**: 개발 편의를 위해 로컬에서는 `VITE_CAPTCHA_ENABLED=false`로 비활성화하는 것을 권장합니다
+
+6. **주의사항**
    - `.env.local`은 Git에 커밋하지 마세요 (`.gitignore`에 포함되어야 함)
    - 배포 빌드 시에는 `.env.local`이 사용되지 않으므로 호스팅 플랫폼(Amplify 등)에 환경 변수를 별도로 설정해야 합니다
    - 로컬과 클라우드 Supabase는 별개의 데이터베이스이므로 데이터가 공유되지 않습니다
@@ -207,6 +225,7 @@ npx supabase db push
 
 - **이메일/비밀번호** 로그인·회원가입. 회원가입 시 비밀번호 강도·비밀번호 확인·이메일 중복 확인·약관 동의 적용.
 - **익명으로 체험하기**: 로그인 화면에서 계정 없이 체험 가능. 아래에서 Supabase Anonymous 제공자를 켜야 동작합니다.
+- **CAPTCHA 보호**: 배포 시 Cloudflare Turnstile을 통한 봇/남용 방지. 개발 환경에서는 환경 변수로 비활성화 가능.
 
 #### 익명으로 체험하기 활성화
 
