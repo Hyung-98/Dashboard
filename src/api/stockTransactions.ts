@@ -1,7 +1,7 @@
 import { supabase, getCurrentUserId } from "@/lib/supabase";
 import { queryKeys } from "./queryKeys";
 import type { Tables } from "@/types/database";
-import type { Insertable, Updatable } from "@/types/database";
+import type { Insertable } from "@/types/database";
 
 export type StockTransaction = Tables<"stock_transactions">;
 

@@ -93,7 +93,7 @@ export function StockTransactionForm({ onSuccess }: StockTransactionFormProps) {
       <div className="form-field">
         <label className="form-label">시장</label>
         <Select<"KR" | "US">
-          options={marketOptions}
+          options={marketOptions as SelectOption<"KR" | "US">[]}
           value={market}
           onChange={(v) => v != null && setMarket(v)}
           placeholder="시장"
@@ -102,7 +102,7 @@ export function StockTransactionForm({ onSuccess }: StockTransactionFormProps) {
       <div className="form-field">
         <label className="form-label">매수/매도</label>
         <Select<"buy" | "sell">
-          options={sideOptions}
+          options={sideOptions as SelectOption<"buy" | "sell">[]}
           value={side}
           onChange={(v) => v != null && setSide(v)}
           placeholder="매수/매도"
