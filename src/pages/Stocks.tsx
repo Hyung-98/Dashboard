@@ -179,7 +179,7 @@ export function Stocks() {
         ),
       },
     ],
-    [prices, pricesLoading, deleteStockHolding.mutate]
+    [prices, pricesLoading, deleteStockHolding, holdings]
   );
 
   const totalValue = useMemo(() => {

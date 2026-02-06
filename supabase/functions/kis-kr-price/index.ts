@@ -23,7 +23,7 @@ function toSixDigitSymbol(s: string): string {
 /** In-memory token cache by env (real/demo), reused within same isolate. */
 const tokenCache: { real?: { token: string; expiresAt: number }; demo?: { token: string; expiresAt: number } } = {};
 /** Serialize token fetch: only one in-flight request per real/demo so we don't hit KIS "1 token per minute" limit. */
-let tokenFetchPromise: { real?: Promise<string>; demo?: Promise<string> } = {};
+const tokenFetchPromise: { real?: Promise<string>; demo?: Promise<string> } = {};
 const EXPIRY_BUFFER_MS = 60 * 1000;
 const DB_POLL_MS = 2000;
 const DB_POLL_ATTEMPTS = 5;

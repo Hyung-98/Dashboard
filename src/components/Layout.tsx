@@ -183,7 +183,7 @@ export function Layout({ children }: LayoutProps) {
     if (!categoriesLoaded || categories.length > 0 || hasTriedSeed.current || seedCategories.isPending) return;
     hasTriedSeed.current = true;
     seedCategories.mutate();
-  }, [categoriesLoaded, categories.length, seedCategories.isPending]);
+  }, [categoriesLoaded, categories.length, seedCategories.isPending, seedCategories]);
 
   const closeNav = () => setNavOpen(false);
 
