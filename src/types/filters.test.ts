@@ -28,6 +28,7 @@ describe("parseExpenseFiltersFromSearchParams", () => {
       categoryId: "cat-1",
       minAmount: null,
       maxAmount: null,
+      query: null,
     });
   });
 
@@ -93,6 +94,7 @@ describe("expenseFiltersToSearchParams", () => {
       categoryId: "cat-1",
       minAmount: 1000,
       maxAmount: 50000,
+      query: "검색",
     };
     const params = expenseFiltersToSearchParams(filters);
     expect(params.get("from")).toBe("2024-01-01");
@@ -100,6 +102,7 @@ describe("expenseFiltersToSearchParams", () => {
     expect(params.get("categoryId")).toBe("cat-1");
     expect(params.get("minAmount")).toBe("1000");
     expect(params.get("maxAmount")).toBe("50000");
+    expect(params.get("query")).toBe("검색");
   });
 
   it("omits null and empty values", () => {
@@ -109,6 +112,7 @@ describe("expenseFiltersToSearchParams", () => {
       categoryId: null,
       minAmount: null,
       maxAmount: null,
+      query: null,
     };
     const params = expenseFiltersToSearchParams(filters);
     expect(params.has("from")).toBe(false);
@@ -116,6 +120,7 @@ describe("expenseFiltersToSearchParams", () => {
     expect(params.has("categoryId")).toBe(false);
     expect(params.has("minAmount")).toBe(false);
     expect(params.has("maxAmount")).toBe(false);
+    expect(params.has("query")).toBe(false);
   });
 
   it("omits NaN minAmount/maxAmount", () => {
@@ -136,6 +141,7 @@ describe("expenseFiltersToSearchParams", () => {
       categoryId: "cat-2",
       minAmount: 500,
       maxAmount: 10000,
+      query: null,
     };
     const params = expenseFiltersToSearchParams(filters);
     expect(parseExpenseFiltersFromSearchParams(params)).toEqual(filters);
@@ -148,13 +154,14 @@ describe("parseIncomeFiltersFromSearchParams", () => {
     expect(parseIncomeFiltersFromSearchParams(params)).toEqual(DEFAULT_INCOME_FILTERS);
   });
 
-  it("parses from, to, categoryId and numeric amounts", () => {
+  it("parses from, to, categoryId, numeric amounts and query", () => {
     const params = new URLSearchParams({
       from: "2024-01-01",
       to: "2024-12-31",
       categoryId: "inc-cat",
       minAmount: "2000",
       maxAmount: "100000",
+      query: "급여",
     });
     expect(parseIncomeFiltersFromSearchParams(params)).toEqual({
       from: "2024-01-01",
@@ -162,6 +169,7 @@ describe("parseIncomeFiltersFromSearchParams", () => {
       categoryId: "inc-cat",
       minAmount: 2000,
       maxAmount: 100000,
+      query: "급여",
     });
   });
 
@@ -187,6 +195,7 @@ describe("incomeFiltersToSearchParams", () => {
       categoryId: "inc-1",
       minAmount: 3000,
       maxAmount: 200000,
+      query: null,
     };
     const params = incomeFiltersToSearchParams(filters);
     expect(parseIncomeFiltersFromSearchParams(params)).toEqual(filters);

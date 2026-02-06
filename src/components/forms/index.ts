@@ -4,3 +4,5 @@ export { AssetForm } from "./AssetForm";
 export { CategoryForm } from "./CategoryForm";
 export { IncomeForm } from "./IncomeForm";
 export { StockForm } from "./StockForm";
+export { StockTransactionForm } from "./StockTransactionForm";
+export { SavingsGoalForm } from "./SavingsGoalForm";

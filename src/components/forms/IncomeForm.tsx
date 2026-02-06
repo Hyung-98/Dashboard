@@ -14,6 +14,12 @@ export function IncomeForm({ initialData, onSuccess }: IncomeFormProps) {
   const [amount, setAmount] = useState<string>(initialData?.amount != null ? String(initialData.amount) : "");
   const [occurredAt, setOccurredAt] = useState<string>(initialData?.occurred_at ?? "");
   const [memo, setMemo] = useState<string>(initialData?.memo ?? "");
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState<"none" | "weekly" | "monthly">(
+    (initialData?.recurrence_frequency as "none" | "weekly" | "monthly") ?? "none"
+  );
+  const [recurrenceInterval, setRecurrenceInterval] = useState<number>(
+    initialData?.recurrence_interval ?? 1
+  );
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const { data: categories = [] } = useCategories();
@@ -44,6 +50,21 @@ export function IncomeForm({ initialData, onSuccess }: IncomeFormProps) {
       return;
     }
 
+    const freq = recurrenceFrequency === "none" ? null : recurrenceFrequency;
+    const nextOcc = (() => {
+      if (!freq || !occurredAt) return null;
+      const d = new Date(occurredAt + "T12:00:00");
+      if (freq === "weekly") {
+        d.setDate(d.getDate() + 7 * recurrenceInterval);
+        return d.toISOString().slice(0, 10);
+      }
+      if (freq === "monthly") {
+        d.setMonth(d.getMonth() + recurrenceInterval);
+        return d.toISOString().slice(0, 10);
+      }
+      return null;
+    })();
+
     try {
       if (isEdit && initialData?.id) {
         await updateIncome.mutateAsync({
@@ -53,6 +74,9 @@ export function IncomeForm({ initialData, onSuccess }: IncomeFormProps) {
             amount: amountNum,
             occurred_at: occurredAt,
             memo: memo.trim() || null,
+            recurrence_frequency: freq,
+            recurrence_interval: recurrenceInterval,
+            next_occurrence: nextOcc,
           },
         });
       } else {
@@ -61,6 +85,9 @@ export function IncomeForm({ initialData, onSuccess }: IncomeFormProps) {
           amount: amountNum,
           occurred_at: occurredAt,
           memo: memo.trim() || null,
+          recurrence_frequency: freq,
+          recurrence_interval: recurrenceInterval,
+          next_occurrence: nextOcc,
         });
       }
       onSuccess?.();
@@ -137,6 +164,39 @@ export function IncomeForm({ initialData, onSuccess }: IncomeFormProps) {
           onChange={(e) => setMemo(e.target.value)}
           placeholder="메모 (선택)"
         />
+      </div>
+      <div className="form-field">
+        <label className="form-label">반복</label>
+        <Select<"none" | "weekly" | "monthly">
+          options={[
+            { value: "none", label: "반복 없음" },
+            { value: "weekly", label: "매주" },
+            { value: "monthly", label: "매월" },
+          ]}
+          value={recurrenceFrequency}
+          onChange={(v) => v != null && setRecurrenceFrequency(v)}
+          placeholder="반복"
+        />
+        {recurrenceFrequency !== "none" && (
+          <div style={{ marginTop: 6 }}>
+            <label htmlFor="income-recurrence-interval" className="form-label" style={{ fontSize: "0.875rem" }}>
+              간격
+            </label>
+            <input
+              id="income-recurrence-interval"
+              type="number"
+              min={1}
+              className="input-number"
+              value={recurrenceInterval}
+              onChange={(e) => setRecurrenceInterval(Math.max(1, Number(e.target.value) || 1))}
+              style={{ width: 80 }}
+              aria-label="반복 간격"
+            />
+            <span style={{ marginLeft: 6, color: "var(--color-text-secondary)" }}>
+              {recurrenceFrequency === "weekly" ? "주마다" : "개월마다"}
+            </span>
+          </div>
+        )}
       </div>
       <div className="form-actions">
         <button type="submit" className="btn-primary" disabled={isPending}>

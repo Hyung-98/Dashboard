@@ -11,7 +11,8 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   signup_disabled: "회원가입이 일시적으로 중단되었습니다.",
   over_email_send_rate_limit: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
   over_request_rate_limit: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
-  anonymous_provider_disabled: "익명 로그인이 비활성화되어 있습니다.",
+  anonymous_provider_disabled:
+    "익명 로그인이 비활성화되어 있습니다. Supabase 대시보드 → Authentication → Providers에서 Anonymous를 켜 주세요.",
   validation_failed: "입력값 형식이 올바르지 않습니다.",
   email_address_invalid: "지원하지 않는 이메일 주소입니다. 다른 이메일을 사용해 주세요.",
   email_address_not_authorized: "이 이메일로는 가입할 수 없습니다. SMTP 설정을 확인해 주세요.",

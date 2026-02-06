@@ -1,0 +1,6 @@
+# 로컬 Supabase 설정 (supabase start 시 사용)
+# 전체 옵션: https://supabase.com/docs/guides/local-development/cli/config
+
+[auth]
+# 익명으로 체험하기 기능 사용 시 true. 호스트 Supabase는 Dashboard → Authentication → Providers → Anonymous 에서 켜야 함.
+enable_anonymous_sign_ins = true

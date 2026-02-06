@@ -23,6 +23,9 @@ export async function fetchExpenses(filters: ExpenseFilters): Promise<ExpenseWit
   if (filters.maxAmount != null && !Number.isNaN(filters.maxAmount)) {
     q = q.lte("amount", filters.maxAmount);
   }
+  if (filters.query?.trim()) {
+    q = q.ilike("memo", `%${filters.query.trim()}%`);
+  }
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);

@@ -4,6 +4,7 @@ import { Table, TableSkeleton, Modal } from "@/components/ui";
 import { BudgetForm } from "@/components/forms";
 import type { Column } from "@/components/ui";
 import type { BudgetWithCategory } from "@/types/domain";
+import { getBudgetAlertEnabled } from "@/lib/settings";
 import { DEFAULT_EXPENSE_FILTERS } from "@/types/filters";
 
 type BudgetRow = BudgetWithCategory & { spent: number; remaining: number; usagePercent: number };
@@ -109,6 +110,11 @@ export function Budgets() {
     },
   ];
 
+  const overrunCount = useMemo(
+    () => budgetsWithSpent.filter((b) => b.usagePercent > 100).length,
+    [budgetsWithSpent]
+  );
+
   if (isError) {
     return (
       <div className="error-alert" role="alert">
@@ -125,6 +131,11 @@ export function Budgets() {
           예산 추가
         </button>
       </header>
+      {getBudgetAlertEnabled() && overrunCount > 0 && (
+        <div className="budget-overrun-alert" role="alert" style={{ marginTop: "0.75rem" }}>
+          {overrunCount}개 예산이 초과되었습니다.
+        </div>
+      )}
       <Modal
         open={addModalOpen || editingBudget != null}
         onClose={() => {

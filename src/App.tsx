@@ -8,6 +8,9 @@ import { Assets } from "@/pages/Assets";
 import { Stocks } from "@/pages/Stocks";
 import { Categories } from "@/pages/Categories";
 import { Incomes } from "@/pages/Incomes";
+import { SavingsGoals } from "@/pages/SavingsGoals";
+import { Report } from "@/pages/Report";
+import { Settings } from "@/pages/Settings";
 
 function App() {
   return (
@@ -25,6 +28,9 @@ function App() {
           <Route path="/stocks" element={<Stocks />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/incomes" element={<Incomes />} />
+          <Route path="/savings-goals" element={<SavingsGoals />} />
+          <Route path="/report" element={<Report />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
       </Layout>
     </ErrorBoundary>

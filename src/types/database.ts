@@ -38,6 +38,9 @@ export interface Database {
           memo: string | null;
           created_at: string;
           user_id: string | null;
+          recurrence_frequency: "none" | "weekly" | "monthly" | null;
+          recurrence_interval: number;
+          next_occurrence: string | null;
         };
         Insert: {
           id?: string;
@@ -48,6 +51,9 @@ export interface Database {
           memo?: string | null;
           created_at?: string;
           user_id?: string | null;
+          recurrence_frequency?: "none" | "weekly" | "monthly" | null;
+          recurrence_interval?: number;
+          next_occurrence?: string | null;
         };
         Update: {
           id?: string;
@@ -58,6 +64,9 @@ export interface Database {
           memo?: string | null;
           created_at?: string;
           user_id?: string | null;
+          recurrence_frequency?: "none" | "weekly" | "monthly" | null;
+          recurrence_interval?: number;
+          next_occurrence?: string | null;
         };
       };
       budgets: {
@@ -121,6 +130,9 @@ export interface Database {
           memo: string | null;
           created_at: string;
           user_id: string | null;
+          recurrence_frequency: "none" | "weekly" | "monthly" | null;
+          recurrence_interval: number;
+          next_occurrence: string | null;
         };
         Insert: {
           id?: string;
@@ -130,6 +142,9 @@ export interface Database {
           memo?: string | null;
           created_at?: string;
           user_id?: string | null;
+          recurrence_frequency?: "none" | "weekly" | "monthly" | null;
+          recurrence_interval?: number;
+          next_occurrence?: string | null;
         };
         Update: {
           id?: string;
@@ -139,6 +154,79 @@ export interface Database {
           memo?: string | null;
           created_at?: string;
           user_id?: string | null;
+          recurrence_frequency?: "none" | "weekly" | "monthly" | null;
+          recurrence_interval?: number;
+          next_occurrence?: string | null;
+        };
+      };
+      savings_goals: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          target_amount: number;
+          current_amount: number;
+          target_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          target_amount: number;
+          current_amount?: number;
+          target_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          target_amount?: number;
+          current_amount?: number;
+          target_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      stock_transactions: {
+        Row: {
+          id: string;
+          user_id: string;
+          symbol: string;
+          market: StockMarket;
+          side: "buy" | "sell";
+          quantity: number;
+          price: number;
+          occurred_at: string;
+          memo: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          symbol: string;
+          market: StockMarket;
+          side: "buy" | "sell";
+          quantity: number;
+          price: number;
+          occurred_at: string;
+          memo?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          symbol?: string;
+          market?: StockMarket;
+          side?: "buy" | "sell";
+          quantity?: number;
+          price?: number;
+          occurred_at?: string;
+          memo?: string | null;
+          created_at?: string;
         };
       };
       stock_holdings: {

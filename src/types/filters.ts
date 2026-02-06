@@ -7,6 +7,7 @@ export interface ExpenseFilters {
   categoryId: string | null;
   minAmount: number | null;
   maxAmount: number | null;
+  query: string | null; // memo search
 }
 
 export const DEFAULT_EXPENSE_FILTERS: ExpenseFilters = {
@@ -15,6 +16,7 @@ export const DEFAULT_EXPENSE_FILTERS: ExpenseFilters = {
   categoryId: null,
   minAmount: null,
   maxAmount: null,
+  query: null,
 };
 
 export function parseExpenseFiltersFromSearchParams(searchParams: URLSearchParams): ExpenseFilters {
@@ -23,12 +25,14 @@ export function parseExpenseFiltersFromSearchParams(searchParams: URLSearchParam
   const categoryId = searchParams.get("categoryId");
   const minAmountRaw = searchParams.get("minAmount");
   const maxAmountRaw = searchParams.get("maxAmount");
+  const query = searchParams.get("query");
   return {
     from,
     to,
     categoryId: categoryId || null,
     minAmount: minAmountRaw != null && minAmountRaw !== "" ? Number(minAmountRaw) : null,
     maxAmount: maxAmountRaw != null && maxAmountRaw !== "" ? Number(maxAmountRaw) : null,
+    query: query || null,
   };
 }
 
@@ -43,6 +47,7 @@ export function expenseFiltersToSearchParams(filters: ExpenseFilters): URLSearch
   if (filters.maxAmount != null && !Number.isNaN(filters.maxAmount)) {
     params.set("maxAmount", String(filters.maxAmount));
   }
+  if (filters.query) params.set("query", filters.query);
   return params;
 }
 
@@ -52,6 +57,7 @@ export interface IncomeFilters {
   categoryId: string | null;
   minAmount: number | null;
   maxAmount: number | null;
+  query: string | null; // memo search
 }
 
 export const DEFAULT_INCOME_FILTERS: IncomeFilters = {
@@ -60,6 +66,7 @@ export const DEFAULT_INCOME_FILTERS: IncomeFilters = {
   categoryId: null,
   minAmount: null,
   maxAmount: null,
+  query: null,
 };
 
 export function parseIncomeFiltersFromSearchParams(searchParams: URLSearchParams): IncomeFilters {
@@ -68,12 +75,14 @@ export function parseIncomeFiltersFromSearchParams(searchParams: URLSearchParams
   const categoryId = searchParams.get("categoryId");
   const minAmountRaw = searchParams.get("minAmount");
   const maxAmountRaw = searchParams.get("maxAmount");
+  const query = searchParams.get("query");
   return {
     from,
     to,
     categoryId: categoryId || null,
     minAmount: minAmountRaw != null && minAmountRaw !== "" ? Number(minAmountRaw) : null,
     maxAmount: maxAmountRaw != null && maxAmountRaw !== "" ? Number(maxAmountRaw) : null,
+    query: query || null,
   };
 }
 
@@ -88,5 +97,6 @@ export function incomeFiltersToSearchParams(filters: IncomeFilters): URLSearchPa
   if (filters.maxAmount != null && !Number.isNaN(filters.maxAmount)) {
     params.set("maxAmount", String(filters.maxAmount));
   }
+  if (filters.query) params.set("query", filters.query);
   return params;
 }

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useExpenseFilters } from "@/hooks/useExpenseFilters";
 import { useExpenses, useCategories, useDeleteExpense } from "@/api/hooks";
+import { downloadExpensesCsv } from "@/lib/csvExport";
 import type { SelectOption } from "@/components/ui";
 import { Table, Select, DateRangePicker, TableSkeleton, Modal } from "@/components/ui";
 import { ExpenseForm } from "@/components/forms";
@@ -69,6 +70,17 @@ export function Expenses() {
       render: (row) => row.memo ?? "-",
     },
     {
+      key: "recurrence",
+      header: "반복 / 다음일",
+      render: (row) => {
+        const freq = row.recurrence_frequency;
+        const next = row.next_occurrence;
+        if (!freq || freq === "none") return "-";
+        const label = freq === "weekly" ? "매주" : "매월";
+        return next ? `${label} (다음: ${next})` : label;
+      },
+    },
+    {
       key: "actions",
       header: "작업",
       render: (row) => (
@@ -117,6 +129,10 @@ export function Expenses() {
     });
   };
 
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters({ query: e.target.value.trim() || null });
+  };
+
   if (isError) {
     return (
       <div className="error-alert" role="alert">
@@ -129,9 +145,20 @@ export function Expenses() {
     <div>
       <header className="page-header">
         <h1>지출 목록</h1>
-        <button type="button" className="btn-primary" onClick={() => setAddModalOpen(true)}>
-          지출 추가
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => downloadExpensesCsv(sortedExpenses)}
+            disabled={sortedExpenses.length === 0}
+            aria-label="지출 목록 CSV 내보내기"
+          >
+            내보내기
+          </button>
+          <button type="button" className="btn-primary" onClick={() => setAddModalOpen(true)}>
+            지출 추가
+          </button>
+        </div>
       </header>
       <Modal
         open={addModalOpen || editingExpense != null}
@@ -157,6 +184,14 @@ export function Expenses() {
           value={filters.categoryId}
           onChange={handleCategoryChange}
           placeholder="카테고리"
+        />
+        <input
+          type="search"
+          className="input-text filter-input"
+          placeholder="메모 검색"
+          value={filters.query ?? ""}
+          onChange={handleQueryChange}
+          aria-label="메모 검색"
         />
         <div className="filter-group">
           <input

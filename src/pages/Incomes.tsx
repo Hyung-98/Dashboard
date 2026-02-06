@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useIncomeFilters } from "@/hooks/useIncomeFilters";
 import { useIncomes, useCategories, useDeleteIncome } from "@/api/hooks";
+import { downloadIncomesCsv } from "@/lib/csvExport";
 import type { SelectOption } from "@/components/ui";
 import { Table, Select, DateRangePicker, TableSkeleton, Modal } from "@/components/ui";
 import { IncomeForm } from "@/components/forms";
@@ -39,6 +40,17 @@ export function Incomes() {
       key: "memo",
       header: "메모",
       render: (row) => row.memo ?? "-",
+    },
+    {
+      key: "recurrence",
+      header: "반복 / 다음일",
+      render: (row) => {
+        const freq = row.recurrence_frequency;
+        const next = row.next_occurrence;
+        if (!freq || freq === "none") return "-";
+        const label = freq === "weekly" ? "매주" : "매월";
+        return next ? `${label} (다음: ${next})` : label;
+      },
     },
     {
       key: "actions",
@@ -106,9 +118,20 @@ export function Incomes() {
     <div>
       <header className="page-header">
         <h1>수입 목록</h1>
-        <button type="button" className="btn-primary" onClick={() => setAddModalOpen(true)}>
-          수입 추가
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => downloadIncomesCsv(sortedIncomes)}
+            disabled={sortedIncomes.length === 0}
+            aria-label="수입 목록 CSV 내보내기"
+          >
+            내보내기
+          </button>
+          <button type="button" className="btn-primary" onClick={() => setAddModalOpen(true)}>
+            수입 추가
+          </button>
+        </div>
       </header>
       <Modal
         open={addModalOpen || editingIncome != null}
@@ -134,6 +157,14 @@ export function Incomes() {
           value={filters.categoryId}
           onChange={(value) => setFilters({ categoryId: value })}
           placeholder="카테고리"
+        />
+        <input
+          type="search"
+          className="input-text filter-input"
+          placeholder="메모 검색"
+          value={filters.query ?? ""}
+          onChange={(e) => setFilters({ query: e.target.value.trim() || null })}
+          aria-label="메모 검색"
         />
         <div className="filter-group">
           <input

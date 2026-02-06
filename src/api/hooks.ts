@@ -5,6 +5,8 @@ import { fetchBudgets, createBudget, updateBudget, deleteBudget } from "./budget
 import { fetchAssets, createAsset, updateAsset, deleteAsset } from "./assets";
 import { fetchIncomes, createIncome, updateIncome, deleteIncome } from "./incomes";
 import { fetchStockHoldings, createStockHolding, updateStockHolding, deleteStockHolding } from "./stocks";
+import { fetchStockTransactions, createStockTransaction, deleteStockTransaction } from "./stockTransactions";
+import { fetchSavingsGoals, createSavingsGoal, updateSavingsGoal, deleteSavingsGoal } from "./savingsGoals";
 import { getCurrentPrices, priceKey } from "./stockPrice";
 import type { StockHolding } from "@/types/domain";
 import { queryKeys } from "./queryKeys";
@@ -224,6 +226,34 @@ export function useDeleteStockHolding() {
   });
 }
 
+export function useStockTransactions() {
+  return useQuery({
+    queryKey: queryKeys.stockTransactions(),
+    queryFn: fetchStockTransactions,
+  });
+}
+
+export function useCreateStockTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Omit<Insertable<"stock_transactions">, "id" | "created_at" | "user_id">) =>
+      createStockTransaction(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockTransactions() });
+    },
+  });
+}
+
+export function useDeleteStockTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteStockTransaction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockTransactions() });
+    },
+  });
+}
+
 export function useIncomes(filters: IncomeFilters) {
   return useQuery({
     queryKey: queryKeys.incomes(filters),
@@ -257,6 +287,44 @@ export function useDeleteIncome() {
     mutationFn: deleteIncome,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...queryKeys.all, "incomes"] });
+    },
+  });
+}
+
+export function useSavingsGoals() {
+  return useQuery({
+    queryKey: queryKeys.savingsGoals(),
+    queryFn: fetchSavingsGoals,
+  });
+}
+
+export function useCreateSavingsGoal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Omit<Insertable<"savings_goals">, "id" | "created_at" | "updated_at" | "user_id">) =>
+      createSavingsGoal(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.savingsGoals() });
+    },
+  });
+}
+
+export function useUpdateSavingsGoal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Updatable<"savings_goals"> }) => updateSavingsGoal(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.savingsGoals() });
+    },
+  });
+}
+
+export function useDeleteSavingsGoal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteSavingsGoal,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.savingsGoals() });
     },
   });
 }

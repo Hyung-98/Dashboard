@@ -20,12 +20,13 @@ describe("useExpenseFilters", () => {
       categoryId: null,
       minAmount: null,
       maxAmount: null,
+      query: null,
     });
   });
 
   it("parses filters from URL search params", () => {
     const { result } = renderHook(() => useExpenseFilters(), {
-      wrapper: createWrapper(["/?from=2024-01-01&to=2024-12-31&categoryId=cat-1&minAmount=1000&maxAmount=50000"]),
+      wrapper: createWrapper(["/?from=2024-01-01&to=2024-12-31&categoryId=cat-1&minAmount=1000&maxAmount=50000&query=검색"]),
     });
     expect(result.current[0]).toEqual({
       from: "2024-01-01",
@@ -33,6 +34,7 @@ describe("useExpenseFilters", () => {
       categoryId: "cat-1",
       minAmount: 1000,
       maxAmount: 50000,
+      query: "검색",
     });
   });
 

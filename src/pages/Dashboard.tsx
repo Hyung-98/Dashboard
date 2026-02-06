@@ -31,10 +31,11 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { useExpenses, useIncomes, useBudgets, useAssets, useStockHoldings, useStockPrices } from "@/api/hooks";
+import { useExpenses, useIncomes, useBudgets, useAssets, useStockHoldings, useStockPrices, useSavingsGoals } from "@/api/hooks";
 import { priceKey } from "@/api/stockPrice";
 import { useTheme } from "@/contexts/ThemeContext";
 import { CardSkeleton, DateRangePicker, Select, type SelectOption } from "@/components/ui";
+import { getBudgetAlertEnabled, getDefaultChartPeriod } from "@/lib/settings";
 import { DEFAULT_EXPENSE_FILTERS, DEFAULT_INCOME_FILTERS } from "@/types/filters";
 
 export type ChartPeriod = "daily" | "weekly" | "monthly" | "yearly";
@@ -91,6 +92,25 @@ const CHART_PERIOD_LABELS: Record<ChartPeriod, string> = {
 };
 const STORAGE_SUMMARY = "dashboard-summary-order";
 const STORAGE_CHART = "dashboard-chart-order";
+const STORAGE_HIDDEN_SUMMARY = "dashboard-hidden-summary";
+const STORAGE_HIDDEN_CHART = "dashboard-hidden-chart";
+
+const SUMMARY_LABELS: Record<string, string> = {
+  expense: "이번 달 지출",
+  budget: "예산 합계",
+  income: "이번 달 수입",
+  asset: "자산 합계",
+  stock: "주식 평가",
+  net: "순이익 (수입 - 지출)",
+};
+const CHART_TITLES: Record<string, string> = {
+  line: "지출 추이",
+  pie: "지출 카테고리별 비율",
+  lineIncome: "수입 추이",
+  pieIncome: "수입 카테고리별 비율",
+  barBudget: "예산 대비 사용액",
+  pieAsset: "자산 카테고리별 비율",
+};
 
 function loadOrder<T extends string>(key: string, defaultOrder: readonly T[]): T[] {
   try {
@@ -118,16 +138,33 @@ function saveOrder(key: string, order: string[]) {
   localStorage.setItem(key, JSON.stringify(order));
 }
 
+function loadHidden(key: string): string[] {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as string[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHidden(key: string, ids: string[]) {
+  localStorage.setItem(key, JSON.stringify(ids));
+}
+
 function SortableSummaryCard({
   id,
   label,
   value,
   valueStyle,
+  onHide,
 }: {
   id: string;
   label: string;
   value: string;
   valueStyle?: React.CSSProperties;
+  onHide?: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `summary-${id}`,
@@ -147,6 +184,20 @@ function SortableSummaryCard({
       <div className="kpi-value" style={valueStyle}>
         {value}
       </div>
+      {onHide && (
+        <button
+          type="button"
+          className="dashboard-widget-hide-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onHide(id);
+          }}
+          aria-label={`${label} 숨기기`}
+          title="숨기기"
+        >
+          숨기기
+        </button>
+      )}
     </div>
   );
 }
@@ -159,7 +210,17 @@ const emptyChartStyle: React.CSSProperties = {
   color: "var(--color-text-secondary)",
 };
 
-function SortableChartCard({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function SortableChartCard({
+  id,
+  title,
+  children,
+  onHide,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+  onHide?: (id: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `chart-${id}`,
   });
@@ -176,6 +237,21 @@ function SortableChartCard({ id, title, children }: { id: string; title: string;
           ⋮⋮
         </span>
         {title}
+        {onHide && (
+          <button
+            type="button"
+            className="dashboard-widget-hide-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onHide(id);
+            }}
+            aria-label={`${title} 숨기기`}
+            title="숨기기"
+            style={{ marginLeft: "auto" }}
+          >
+            숨기기
+          </button>
+        )}
       </h3>
       {children}
     </div>
@@ -188,10 +264,21 @@ export function Dashboard() {
   const gridStroke = isDark ? "#27272a" : "#f1f5f9";
   const [summaryOrder, setSummaryOrder] = useState<string[]>(() => loadOrder(STORAGE_SUMMARY, SUMMARY_IDS));
   const [chartOrder, setChartOrder] = useState<string[]>(() => loadOrder(STORAGE_CHART, CHART_IDS));
+  const [hiddenSummaryIds, setHiddenSummaryIds] = useState<string[]>(() => loadHidden(STORAGE_HIDDEN_SUMMARY));
+  const [hiddenChartIds, setHiddenChartIds] = useState<string[]>(() => loadHidden(STORAGE_HIDDEN_CHART));
   const defaultRange = useMemo(getDefaultChartDateRange, []);
   const [chartDateFrom, setChartDateFrom] = useState<string>(defaultRange.from);
   const [chartDateTo, setChartDateTo] = useState<string>(defaultRange.to);
-  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("monthly");
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>(getDefaultChartPeriod);
+
+  const visibleSummaryOrder = useMemo(
+    () => summaryOrder.filter((id) => !hiddenSummaryIds.includes(id)),
+    [summaryOrder, hiddenSummaryIds]
+  );
+  const visibleChartOrder = useMemo(
+    () => chartOrder.filter((id) => !hiddenChartIds.includes(id)),
+    [chartOrder, hiddenChartIds]
+  );
 
   useEffect(() => {
     saveOrder(STORAGE_SUMMARY, summaryOrder);
@@ -199,6 +286,25 @@ export function Dashboard() {
   useEffect(() => {
     saveOrder(STORAGE_CHART, chartOrder);
   }, [chartOrder]);
+  useEffect(() => {
+    saveHidden(STORAGE_HIDDEN_SUMMARY, hiddenSummaryIds);
+  }, [hiddenSummaryIds]);
+  useEffect(() => {
+    saveHidden(STORAGE_HIDDEN_CHART, hiddenChartIds);
+  }, [hiddenChartIds]);
+
+  const hideSummary = useCallback((id: string) => {
+    setHiddenSummaryIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+  const hideChart = useCallback((id: string) => {
+    setHiddenChartIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+  const showSummary = useCallback((id: string) => {
+    setHiddenSummaryIds((prev) => prev.filter((x) => x !== id));
+  }, []);
+  const showChart = useCallback((id: string) => {
+    setHiddenChartIds((prev) => prev.filter((x) => x !== id));
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -212,22 +318,33 @@ export function Dashboard() {
       const activeStr = String(active.id);
       const overStr = String(over.id);
       if (activeStr.startsWith("summary-") && overStr.startsWith("summary-")) {
-        const ids = summaryOrder.map((id) => `summary-${id}`);
-        const oldIndex = ids.indexOf(activeStr);
-        const newIndex = ids.indexOf(overStr);
+        const visibleIds = visibleSummaryOrder;
+        const oldIndex = visibleIds.indexOf(activeStr.replace("summary-", ""));
+        const newIndex = visibleIds.indexOf(overStr.replace("summary-", ""));
         if (oldIndex !== -1 && newIndex !== -1) {
-          setSummaryOrder((prev) => arrayMove(prev, oldIndex, newIndex));
+          const reordered = arrayMove(visibleIds, oldIndex, newIndex);
+          const hiddenIds = summaryOrder.filter((id) => hiddenSummaryIds.includes(id));
+          setSummaryOrder([...reordered, ...hiddenIds]);
         }
       } else if (activeStr.startsWith("chart-") && overStr.startsWith("chart-")) {
-        const ids = chartOrder.map((id) => `chart-${id}`);
-        const oldIndex = ids.indexOf(activeStr);
-        const newIndex = ids.indexOf(overStr);
+        const visibleIds = visibleChartOrder;
+        const oldIndex = visibleIds.indexOf(activeStr.replace("chart-", ""));
+        const newIndex = visibleIds.indexOf(overStr.replace("chart-", ""));
         if (oldIndex !== -1 && newIndex !== -1) {
-          setChartOrder((prev) => arrayMove(prev, oldIndex, newIndex));
+          const reordered = arrayMove(visibleIds, oldIndex, newIndex);
+          const hiddenIds = chartOrder.filter((id) => hiddenChartIds.includes(id));
+          setChartOrder([...reordered, ...hiddenIds]);
         }
       }
     },
-    [summaryOrder, chartOrder]
+    [
+      visibleSummaryOrder,
+      visibleChartOrder,
+      summaryOrder,
+      chartOrder,
+      hiddenSummaryIds,
+      hiddenChartIds,
+    ]
   );
 
   const expenseFilters = useMemo(
@@ -262,6 +379,7 @@ export function Dashboard() {
   const { data: assets = [], isLoading: assetsLoading } = useAssets();
   const { data: holdings = [], isLoading: holdingsLoading } = useStockHoldings();
   const { data: prices = {}, isLoading: pricesLoading } = useStockPrices(holdings);
+  const { data: savingsGoals = [], isLoading: savingsGoalsLoading } = useSavingsGoals();
 
   function isExpenseInBudgetPeriod(occurredAt: string, periodStart: string, period: "monthly" | "yearly"): boolean {
     if (period === "monthly") return occurredAt.slice(0, 7) === periodStart.slice(0, 7);
@@ -307,6 +425,11 @@ export function Dashboard() {
       };
     });
   }, [budgets, expensesTrend]);
+
+  const budgetOverrunCount = useMemo(
+    () => budgetVsSpentData.filter((d) => d.spent > d.budget).length,
+    [budgetVsSpentData]
+  );
 
   const assetCategoryData = useMemo(() => {
     const byCat: Record<string, number> = {};
@@ -383,10 +506,24 @@ export function Dashboard() {
     ]
   );
 
-  const summarySortableIds = useMemo(() => summaryOrder.map((id) => `summary-${id}`), [summaryOrder]);
-  const chartSortableIds = useMemo(() => chartOrder.map((id) => `chart-${id}`), [chartOrder]);
+  const summarySortableIds = useMemo(
+    () => visibleSummaryOrder.map((id) => `summary-${id}`),
+    [visibleSummaryOrder]
+  );
+  const chartSortableIds = useMemo(
+    () => visibleChartOrder.map((id) => `chart-${id}`),
+    [visibleChartOrder]
+  );
+  const visibleSummaryItems = useMemo(
+    () =>
+      visibleSummaryOrder
+        .map((id) => summaryItems.find((item) => item.id === id))
+        .filter((x): x is (typeof summaryItems)[number] => x != null),
+    [visibleSummaryOrder, summaryItems]
+  );
 
-  const isLoading = expensesLoading || incomesLoading || budgetsLoading || assetsLoading || holdingsLoading;
+  const isLoading =
+    expensesLoading || incomesLoading || budgetsLoading || assetsLoading || holdingsLoading || savingsGoalsLoading;
 
   if (isLoading) {
     return (
@@ -414,16 +551,76 @@ export function Dashboard() {
       <header className="page-header">
         <h1>대시보드</h1>
       </header>
+      {getBudgetAlertEnabled() && budgetOverrunCount > 0 && (
+        <div className="budget-overrun-alert" role="alert">
+          <span>예산 초과: {budgetOverrunCount}건</span>
+          <a href="#/budgets">예산 페이지로 이동</a>
+        </div>
+      )}
+      {savingsGoals.length > 0 && (
+        <section className="dashboard-savings-goals" aria-label="저축 목표 진행률" style={{ marginTop: "1rem" }}>
+          <h2 style={{ fontSize: "0.875rem", marginBottom: 8, color: "var(--color-text-secondary)" }}>
+            저축 목표 (목표 대비 %)
+          </h2>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            {savingsGoals.map((g) => {
+              const current = Number(g.current_amount);
+              const target = Number(g.target_amount);
+              const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+              return (
+                <div
+                  key={g.id}
+                  style={{
+                    padding: "0.75rem 1rem",
+                    background: "var(--color-bg-secondary)",
+                    borderRadius: 8,
+                    border: "1px solid var(--color-border)",
+                    minWidth: 160,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{g.name}</div>
+                  <div style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>
+                    {current.toLocaleString()}원 / {target.toLocaleString()}원
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      height: 8,
+                      background: "var(--color-border)",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${pct}%`,
+                        height: "100%",
+                        background: "var(--color-accent-green)",
+                        borderRadius: 4,
+                      }}
+                    />
+                  </div>
+                  <div style={{ fontSize: "0.75rem", marginTop: 4 }}>{pct}%</div>
+                </div>
+              );
+            })}
+          </div>
+          <a href="#/savings-goals" style={{ fontSize: "0.875rem", marginTop: 8, display: "inline-block" }}>
+            저축 목표 관리 →
+          </a>
+        </section>
+      )}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={summarySortableIds} strategy={rectSortingStrategy}>
           <div className="dashboard-summary-grid">
-            {summaryItems.map((item) => (
+            {visibleSummaryItems.map((item) => (
               <SortableSummaryCard
                 key={item.id}
                 id={item.id}
                 label={item.label}
                 value={item.value}
                 valueStyle={item.valueStyle}
+                onHide={hideSummary}
               />
             ))}
           </div>
@@ -470,10 +667,10 @@ export function Dashboard() {
 
         <SortableContext items={chartSortableIds} strategy={rectSortingStrategy}>
           <div className="dashboard-chart-grid">
-            {chartOrder.map((id) => {
+            {visibleChartOrder.map((id) => {
               if (id === "line") {
                 return (
-                  <SortableChartCard key="line" id="line" title={`${CHART_PERIOD_LABELS[chartPeriod]} 지출 추이`}>
+                  <SortableChartCard key="line" id="line" title={`${CHART_PERIOD_LABELS[chartPeriod]} 지출 추이`} onHide={hideChart}>
                     {trendExpenseData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={280}>
                         <LineChart data={trendExpenseData}>
@@ -492,7 +689,7 @@ export function Dashboard() {
               }
               if (id === "pie") {
                 return (
-                  <SortableChartCard key="pie" id="pie" title="지출 카테고리별 비율">
+                  <SortableChartCard key="pie" id="pie" title="지출 카테고리별 비율" onHide={hideChart}>
                     {categoryData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={280}>
                         <PieChart>
@@ -525,6 +722,7 @@ export function Dashboard() {
                     key="lineIncome"
                     id="lineIncome"
                     title={`${CHART_PERIOD_LABELS[chartPeriod]} 수입 추이`}
+                    onHide={hideChart}
                   >
                     {trendIncomeData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={280}>
@@ -544,7 +742,7 @@ export function Dashboard() {
               }
               if (id === "pieIncome") {
                 return (
-                  <SortableChartCard key="pieIncome" id="pieIncome" title="수입 카테고리별 비율">
+                  <SortableChartCard key="pieIncome" id="pieIncome" title="수입 카테고리별 비율" onHide={hideChart}>
                     {incomeCategoryData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={280}>
                         <PieChart>
@@ -573,7 +771,7 @@ export function Dashboard() {
               }
               if (id === "barBudget") {
                 return (
-                  <SortableChartCard key="barBudget" id="barBudget" title="예산 대비 사용액">
+                  <SortableChartCard key="barBudget" id="barBudget" title="예산 대비 사용액" onHide={hideChart}>
                     {budgetVsSpentData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={280}>
                         <BarChart data={budgetVsSpentData} margin={{ top: 8, right: 8, left: 8, bottom: 60 }}>
@@ -599,7 +797,7 @@ export function Dashboard() {
               }
               if (id === "pieAsset") {
                 return (
-                  <SortableChartCard key="pieAsset" id="pieAsset" title="자산 카테고리별 비율">
+                  <SortableChartCard key="pieAsset" id="pieAsset" title="자산 카테고리별 비율" onHide={hideChart}>
                     {assetChartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={280}>
                         <PieChart>
@@ -630,6 +828,42 @@ export function Dashboard() {
             })}
           </div>
         </SortableContext>
+
+        {(hiddenSummaryIds.length > 0 || hiddenChartIds.length > 0) && (
+          <section className="dashboard-hidden-widgets" aria-label="숨긴 위젯">
+            <h3 style={{ fontSize: "0.875rem", marginBottom: 8, color: "var(--color-text-secondary)" }}>
+              숨긴 위젯 ({hiddenSummaryIds.length + hiddenChartIds.length}개)
+            </h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {hiddenSummaryIds.map((id) => (
+                <span key={`s-${id}`} className="dashboard-hidden-widget-chip">
+                  {SUMMARY_LABELS[id] ?? id}
+                  <button
+                    type="button"
+                    className="dashboard-widget-show-btn"
+                    onClick={() => showSummary(id)}
+                    aria-label={`${SUMMARY_LABELS[id] ?? id} 다시 표시`}
+                  >
+                    다시 표시
+                  </button>
+                </span>
+              ))}
+              {hiddenChartIds.map((id) => (
+                <span key={`c-${id}`} className="dashboard-hidden-widget-chip">
+                  {CHART_TITLES[id] ?? id}
+                  <button
+                    type="button"
+                    className="dashboard-widget-show-btn"
+                    onClick={() => showChart(id)}
+                    aria-label={`${CHART_TITLES[id] ?? id} 다시 표시`}
+                  >
+                    다시 표시
+                  </button>
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
       </DndContext>
     </div>
   );

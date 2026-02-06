@@ -206,7 +206,20 @@ npx supabase db push
 ### 인증
 
 - **이메일/비밀번호** 로그인·회원가입. 회원가입 시 비밀번호 강도·비밀번호 확인·이메일 중복 확인·약관 동의 적용.
-- **익명 로그인**: Dashboard → Authentication → Providers → **Anonymous** 활성화 시, 세션 없을 때 익명 로그인 시도.
+- **익명으로 체험하기**: 로그인 화면에서 계정 없이 체험 가능. 아래에서 Supabase Anonymous 제공자를 켜야 동작합니다.
+
+#### 익명으로 체험하기 활성화
+
+앱의 "익명으로 체험하기" 버튼이 동작하려면 Supabase에서 **Anonymous**를 켜야 합니다.
+
+- **로컬 Supabase** (`npx supabase start`): 이 저장소의 `supabase/config.toml`에 이미 `enable_anonymous_sign_ins = true`가 설정되어 있습니다. **한 번 `npx supabase stop` 후 `npx supabase start`로 다시 띄우면** 익명 로그인이 적용됩니다.
+- **호스트 Supabase** (배포/클라우드):
+  1. [Supabase Dashboard](https://supabase.com/dashboard) → 사용 중인 프로젝트 선택
+  2. **Authentication** → **Providers**
+  3. **Anonymous** → **Enable** 토글 켜기
+  4. (선택) **Authentication** → **Rate Limits** 확인, 필요 시 [CAPTCHA](https://supabase.com/docs/guides/auth/auth-captcha) 활성화
+
+동작하지 않으면 로그인 화면에 표시되는 에러 메시지(예: "Supabase 대시보드 → Authentication → Providers에서 Anonymous를 켜 주세요")를 확인한 뒤, 위 설정을 적용하세요. 익명 사용자도 `auth.uid()`로 RLS가 적용된 테이블(지출·예산·자산 등)에 본인 데이터만 읽기/쓰기 가능합니다.
 
 ## 주요 기능
 
@@ -221,39 +234,11 @@ npx supabase db push
 | **데이터 시각화**   | Recharts로 대시보드 월별 지출 추이(LineChart), 카테고리별 비율(PieChart)                                                                  |
 | **타입**            | DB/도메인/필터 타입 정의 (`src/types/`), TanStack Query 캐시 (`src/api/`)                                                                 |
 
-## 필수·권장 체크리스트
-
-온보딩·배포·유지보수 시 참고용입니다.
-
-### 들어가야 할 것 (필수)
-
-| 항목                                          | 상태/비고                                            |
-| --------------------------------------------- | ---------------------------------------------------- |
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | 환경 변수 섹션 및 `.env.example`에 명시됨            |
-| SERVICE_ROLE_KEY를 클라이언트에 두지 않기     | `.env.example`에는 넣지 않음. 백엔드 전용으로만 사용 |
-| 인증(로그인/회원가입/세션)                    | AuthInit·Login으로 구현됨                            |
-| Supabase 마이그레이션·RLS                     | 위 문서대로 적용하면 됨                              |
-| KR 주식 사용 시 Edge Function + Secrets       | 배포 후 사용하기 절차 참고                           |
-| 배포 시 빌드·환경 변수                        | Amplify 등에 URL·anon key 필수 설정                  |
-
-### 들어가면 좋을 것 (권장)
-
-| 항목                                        | 비고                                               |
-| ------------------------------------------- | -------------------------------------------------- |
-| 단위/통합/E2E 테스트                        | 핵심 API·훅·플로우 테스트 도입                     |
-| CI (lint, build, test)                      | PR/푸시 시 `npm run lint`, `npm run build` 등 실행 |
-| Form 스토리, 에러 모니터링, a11y, 번들 분석 | 선택                                               |
-| Supabase 보안 어드바이저                    | Dashboard → Advisors에서 경고 확인 후 조치         |
-
-### 구현된 권장 사항 (플랜 기준)
-
-아래는 **권장 사항 구현 플랜**에 따라 이미 적용된 작업입니다.
-
 | 구분 | 구현 내용 | 산출물/사용법 |
 |------|-----------|----------------|
 | **1. 단위/통합 테스트** | Vitest + React Testing Library. `vite.config.ts`에 test 블록(jsdom, `@` alias, setup), `src/test/setup.ts`에서 `@testing-library/jest-dom` 로드. | `npm run test` (watch), `npm run test:run` (1회). `src/types/filters.test.ts`(parse/직렬화·경계값·숫자 파싱), `src/hooks/useExpenseFilters.test.tsx`(URL 동기화·setFilters) |
 | **2. CI** | GitHub Actions로 `main`/`develop` 푸시·PR 시 품질 검사만 수행. Node 20, `npm ci` → `lint` → `build` → `test:run`. Amplify 배포는 그대로 두고 CI는 검증 전용. | `.github/workflows/ci.yml` |
-| **3. Form 스토리** | Storybook preview에 `QueryClientProvider` + `MemoryRouter` 전역 decorator. `QueryClient`의 `defaultOptions.queries.queryFn`으로 categories/budgets mock 반환해 API 없이 폼 렌더. | `.storybook/preview.tsx`, `src/components/forms/ExpenseForm.stories.tsx`, `IncomeForm.stories.tsx` (빈 폼 / 수정용 initialData). `npm run storybook` |
+| **3. Form 스토리** | Storybook preview에 `QueryClientProvider` + `MemoryRouter` 전역 decorator. `QueryClient`의 `defaultOptions.queries.queryFn`으로 categories/budgets mock 반환해 API 없이 폼 렌더. | `.storybook/preview.tsx`, `.storybook/mocks.ts`, `src/components/forms/ExpenseForm.stories.tsx`, `IncomeForm.stories.tsx`, `SavingsGoalForm.stories.tsx`, `StockTransactionForm.stories.tsx` (빈 폼 / 수정용 initialData). `npm run storybook` |
 | **4. 에러 모니터링 (Sentry)** | 선택. `VITE_SENTRY_DSN` 설정 시에만 `main.tsx`에서 `Sentry.init()`. `ErrorBoundary`의 `componentDidCatch`에서 `Sentry.captureException(error)` 호출. | `.env`에 `VITE_SENTRY_DSN` 추가 시 활성화. `.env.example`·`src/vite-env.d.ts`에 설명·타입 |
 | **5. 접근성 (a11y)** | Storybook에 `@storybook/addon-a11y` 추가. Modal/Select/DateRangePicker 등 UI 스토리에서 Accessibility 패널로 경고 확인. | `.storybook/main.ts` addons. 스토리 실행 후 "Accessibility" 탭 |
 | **6. 번들 분석** | `rollup-plugin-visualizer`를 `ANALYZE` 환경 변수로만 활성화. 분석 시 `stats.html`(gzip 크기 포함) 생성. | `npm run build:analyze` → 프로젝트 루트 `stats.html`. `.gitignore`에 `stats.html` 포함 |

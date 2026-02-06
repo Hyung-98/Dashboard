@@ -29,6 +29,7 @@ export function Login() {
   const [message, setMessage] = useState<string | null>(null);
   const [emailCheckStatus, setEmailCheckStatus] = useState<null | "checking" | "available" | "taken" | "error">(null);
   const [emailCheckedAt, setEmailCheckedAt] = useState("");
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
 
   const handleCheckEmailDuplicate = async () => {
     const emailError = validateEmail(email);
@@ -115,14 +116,38 @@ export function Login() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}${window.location.pathname || "/"}#/`,
+      });
+      if (resetError) throw resetError;
+      setMessage("비밀번호 재설정 링크를 이메일로 보냈습니다. 메일함을 확인해 주세요.");
+    } catch (err) {
+      setError(getAuthErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAnonymousLogin = async () => {
     setError(null);
     setMessage(null);
     setLoading(true);
     try {
-      const { error: anonError } = await supabase.auth.signInAnonymously();
+      const { data: { session }, error: anonError } = await supabase.auth.signInAnonymously();
       if (anonError) throw anonError;
-      // Session is set; AuthInit will re-render and show App
+      if (!session) throw new Error("Anonymous login failed");
+      // 세션 설정됨 → AuthInit의 onAuthStateChange가 감지해 앱으로 전환
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {
@@ -132,6 +157,56 @@ export function Login() {
 
   const errorId = "login-error";
   const messageId = "login-message";
+
+  if (isForgotPassword) {
+    return (
+      <div className="login-container">
+        <div className="login-card">
+          <h1>비밀번호 찾기</h1>
+          <form onSubmit={handleForgotPassword} aria-describedby={error ? errorId : message ? messageId : undefined}>
+            {error && (
+              <div id={errorId} className="error-alert" role="alert" style={{ marginBottom: "1rem" }}>
+                {error}
+              </div>
+            )}
+            {message && (
+              <div id={messageId} className="message-success" role="status">
+                {message}
+              </div>
+            )}
+            <div className="form-field">
+              <label htmlFor="forgot-email" className="form-label">이메일</label>
+              <input
+                id="forgot-email"
+                type="email"
+                className="input-text"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                autoComplete="email"
+                disabled={loading}
+              />
+            </div>
+            <button type="submit" className="btn-primary" disabled={loading} style={{ width: "100%", padding: "0.75rem 1rem" }}>
+              {loading ? "처리 중..." : "재설정 링크 보내기"}
+            </button>
+          </form>
+          <button
+            type="button"
+            className="btn-secondary-block"
+            onClick={() => {
+              setIsForgotPassword(false);
+              setError(null);
+              setMessage(null);
+            }}
+          >
+            로그인으로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-container">
@@ -261,6 +336,21 @@ export function Login() {
           </button>
         </form>
 
+        {!isSignUp && (
+          <button
+            type="button"
+            className="btn-outline-block"
+            style={{ marginTop: "0.5rem" }}
+            onClick={() => {
+              setIsForgotPassword(true);
+              setError(null);
+              setMessage(null);
+            }}
+          >
+            비밀번호 찾기
+          </button>
+        )}
+
         <button
           type="button"
           className="btn-secondary-block"
@@ -277,7 +367,13 @@ export function Login() {
           {isSignUp ? "이미 계정이 있으신가요? 로그인" : "계정이 없으신가요? 회원가입"}
         </button>
 
-        <button type="button" className="btn-outline-block" disabled={loading} onClick={handleAnonymousLogin}>
+        <button
+          type="button"
+          className="btn-outline-block"
+          disabled={loading}
+          onClick={handleAnonymousLogin}
+          aria-label="익명으로 체험하기"
+        >
           익명으로 체험하기
         </button>
       </div>

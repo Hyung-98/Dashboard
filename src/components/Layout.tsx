@@ -15,7 +15,10 @@ const nav = [
   { to: "/budgets", label: "예산", icon: "budget" },
   { to: "/assets", label: "자산", icon: "asset" },
   { to: "/stocks", label: "주식", icon: "stock" },
+  { to: "/savings-goals", label: "저축 목표", icon: "budget" },
   { to: "/categories", label: "카테고리", icon: "category" },
+  { to: "/report", label: "리포트", icon: "chart" },
+  { to: "/settings", label: "설정", icon: "category" },
 ];
 
 // const pathToTitle: Record<string, string> = {

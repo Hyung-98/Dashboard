@@ -1,8 +1,15 @@
 import { useState, useMemo } from "react";
-import { useStockHoldings, useStockPrices, useDeleteStockHolding } from "@/api/hooks";
+import {
+  useStockHoldings,
+  useStockPrices,
+  useDeleteStockHolding,
+  useStockTransactions,
+  useDeleteStockTransaction,
+} from "@/api/hooks";
 import { priceKey } from "@/api/stockPrice";
+import type { StockTransaction } from "@/api/stockTransactions";
 import { Table, TableSkeleton, Modal } from "@/components/ui";
-import { StockForm } from "@/components/forms";
+import { StockForm, StockTransactionForm } from "@/components/forms";
 import type { Column } from "@/components/ui";
 import type { StockHolding } from "@/types/domain";
 
@@ -59,9 +66,12 @@ function getSortValue(
 export function Stocks() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState<StockHolding | null>(null);
+  const [txModalOpen, setTxModalOpen] = useState(false);
   const { data: holdings = [], isLoading, isError, error } = useStockHoldings();
   const { data: prices = {}, isLoading: pricesLoading } = useStockPrices(holdings);
+  const { data: transactions = [], isLoading: txLoading } = useStockTransactions();
   const deleteStockHolding = useDeleteStockHolding();
+  const deleteStockTransaction = useDeleteStockTransaction();
   const [sortKey, setSortKey] = useState<string | null>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -260,6 +270,75 @@ export function Stocks() {
           onSort={handleSort}
         />
       )}
+
+      <section style={{ marginTop: "2rem" }} aria-label="거래 내역">
+        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+          <h2 style={{ fontSize: "1.125rem", margin: 0 }}>거래 내역</h2>
+          <button type="button" className="btn-secondary" onClick={() => setTxModalOpen(true)}>
+            거래 추가
+          </button>
+        </header>
+        <Modal
+          open={txModalOpen}
+          onClose={() => setTxModalOpen(false)}
+          title="거래 추가"
+        >
+          <StockTransactionForm
+            onSuccess={() => setTxModalOpen(false)}
+          />
+        </Modal>
+        {txLoading ? (
+          <TableSkeleton rows={5} cols={6} />
+        ) : (
+          <Table<StockTransaction>
+            columns={[
+              { key: "occurred_at", header: "날짜", render: (row) => row.occurred_at },
+              { key: "symbol", header: "종목", render: (row) => row.symbol },
+              { key: "market", header: "시장", render: (row) => row.market },
+              {
+                key: "side",
+                header: "매수/매도",
+                render: (row) => (row.side === "buy" ? "매수" : "매도"),
+              },
+              {
+                key: "quantity",
+                header: "수량",
+                render: (row) => row.quantity.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+              },
+              {
+                key: "price",
+                header: "단가",
+                render: (row) => formatStockMoney(Number(row.price), row.market),
+              },
+              {
+                key: "memo",
+                header: "메모",
+                render: (row) => row.memo ?? "-",
+              },
+              {
+                key: "actions",
+                header: "작업",
+                render: (row) => (
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => {
+                        if (window.confirm("이 거래를 삭제할까요?")) deleteStockTransaction.mutate(row.id);
+                      }}
+                    >
+                      삭제
+                    </button>
+                  </span>
+                ),
+              },
+            ]}
+            data={transactions}
+            getRowKey={(row) => row.id}
+            emptyMessage="등록된 거래 내역이 없습니다."
+          />
+        )}
+      </section>
     </div>
   );
 }
