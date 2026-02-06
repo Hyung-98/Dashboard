@@ -532,6 +532,9 @@ a:hover {
 /* ========== Table ========== */
 .table-wrap {
   position: relative;
+}
+.table-wrap-inner {
+  position: relative;
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

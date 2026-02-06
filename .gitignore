@@ -5,6 +5,7 @@ node_modules
 dist
 build
 storybook-static
+stats.html
 
 # Environment & secrets
 .env

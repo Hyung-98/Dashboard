@@ -52,7 +52,7 @@ function getSortValue(
       return (marketValue / totalValue) * 100;
     }
     default:
-      return (row as unknown as Record<string, unknown>)[sortKey] as string | number ?? "";
+      return ((row as unknown as Record<string, unknown>)[sortKey] as string | number) ?? "";
   }
 }
 
@@ -223,7 +223,7 @@ export function Stocks() {
   }
 
   return (
-    <div>
+    <div className="stocks-page">
       <header className="page-header">
         <h1>주식</h1>
         <button type="button" className="btn-primary" onClick={() => setAddModalOpen(true)}>

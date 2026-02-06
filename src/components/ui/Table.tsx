@@ -51,64 +51,66 @@ export function Table<T>({
 
   return (
     <div className="table-wrap">
-      <table className="table-theme">
-        <thead>
-          <tr>
-            {columns.map((col) => {
-              const isSorted = col.sortable && sortKey === col.key;
-              const ariaSort: "ascending" | "descending" | "none" | undefined = col.sortable
-                ? isSorted
-                  ? sortDirection === "asc"
-                    ? "ascending"
-                    : "descending"
-                  : "none"
-                : undefined;
-              return (
-                <th key={col.key} scope="col" aria-sort={ariaSort}>
-                  {col.sortable && onSort ? (
-                    <button
-                      type="button"
-                      className="table-sort-header"
-                      onClick={() => onSort(col.key)}
-                      aria-label={
-                        isSorted
-                          ? `${col.header} ${
-                              sortDirection === "asc" ? "오름차순" : "내림차순"
-                            } 정렬됨. 정렬 변경하려면 클릭`
-                          : `${col.header} 정렬`
-                      }
-                    >
-                      {col.header}
-                      {isSorted && (
-                        <span className="table-sort-icon" aria-hidden="true">
-                          {sortDirection === "asc" ? " ↑" : " ↓"}
-                        </span>
-                      )}
-                    </button>
-                  ) : (
-                    col.header
-                  )}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row) => (
-            <tr
-              key={getRowKey(row)}
-              style={{ cursor: onRowClick ? "pointer" : "default" }}
-              onClick={() => onRowClick?.(row)}
-            >
-              {columns.map((col) => (
-                <td key={col.key}>
-                  {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? "")}
-                </td>
-              ))}
+      <div className="table-wrap-inner">
+        <table className="table-theme">
+          <thead>
+            <tr>
+              {columns.map((col) => {
+                const isSorted = col.sortable && sortKey === col.key;
+                const ariaSort: "ascending" | "descending" | "none" | undefined = col.sortable
+                  ? isSorted
+                    ? sortDirection === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                  : undefined;
+                return (
+                  <th key={col.key} scope="col" aria-sort={ariaSort}>
+                    {col.sortable && onSort ? (
+                      <button
+                        type="button"
+                        className="table-sort-header"
+                        onClick={() => onSort(col.key)}
+                        aria-label={
+                          isSorted
+                            ? `${col.header} ${
+                                sortDirection === "asc" ? "오름차순" : "내림차순"
+                              } 정렬됨. 정렬 변경하려면 클릭`
+                            : `${col.header} 정렬`
+                        }
+                      >
+                        {col.header}
+                        {isSorted && (
+                          <span className="table-sort-icon" aria-hidden="true">
+                            {sortDirection === "asc" ? " ↑" : " ↓"}
+                          </span>
+                        )}
+                      </button>
+                    ) : (
+                      col.header
+                    )}
+                  </th>
+                );
+              })}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((row) => (
+              <tr
+                key={getRowKey(row)}
+                style={{ cursor: onRowClick ? "pointer" : "default" }}
+                onClick={() => onRowClick?.(row)}
+              >
+                {columns.map((col) => (
+                  <td key={col.key}>
+                    {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? "")}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
