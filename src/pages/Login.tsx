@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { getAuthErrorMessage } from "@/lib/authErrors";
+import { isAuthApiError } from "@supabase/supabase-js";
+import { ANONYMOUS_SIGNIN_SERVER_ERROR_MESSAGE, getAuthErrorMessage } from "@/lib/authErrors";
 import { supabase } from "@/lib/supabase";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -149,7 +150,12 @@ export function Login() {
       if (!session) throw new Error("Anonymous login failed");
       // 세션 설정됨 → AuthInit의 onAuthStateChange가 감지해 앱으로 전환
     } catch (err) {
-      setError(getAuthErrorMessage(err));
+      // 500 on signup often means Anonymous Sign-In is disabled in Supabase Dashboard
+      const message: string =
+        isAuthApiError(err) && err.status === 500
+          ? ANONYMOUS_SIGNIN_SERVER_ERROR_MESSAGE
+          : getAuthErrorMessage(err);
+      setError(message);
     } finally {
       setLoading(false);
     }

@@ -21,6 +21,11 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   unexpected_failure: "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
 };
 
+/** Shown when anonymous sign-in returns 500 (often because Anonymous is disabled in dashboard). */
+export const ANONYMOUS_SIGNIN_SERVER_ERROR_MESSAGE: string =
+  AUTH_ERROR_MESSAGES["anonymous_provider_disabled"] ??
+  "익명 로그인이 비활성화되어 있습니다. Supabase 대시보드 → Authentication → Providers에서 Anonymous를 켜 주세요.";
+
 const DEFAULT_MESSAGE = "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
 
 /**
