@@ -10,6 +10,8 @@ interface ImportMetaEnv {
   readonly VITE_CAPTCHA_SITE_KEY?: string;
   /** CAPTCHA 활성화 여부 (optional). 'true' 또는 'false' (기본값: false). */
   readonly VITE_CAPTCHA_ENABLED?: string;
+  /** 앱 공개 URL (optional). 비밀번호 재설정 이메일 링크용. 미설정 시 현재 origin(localhost 등) 사용. */
+  readonly VITE_APP_URL?: string;
 }
 
 interface ImportMeta {
