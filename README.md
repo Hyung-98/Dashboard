@@ -88,6 +88,7 @@ npm run build:analyze
 | 3    | 프론트엔드 환경 변수  | Amplify(또는 사용 중인 호스팅) Build 설정에서 **클라우드** Supabase 값 사용: `VITE_SUPABASE_URL=https://<프로젝트_REF>.supabase.co`, `VITE_SUPABASE_ANON_KEY=<클라우드_anon_key>` (Dashboard → Project settings → API에서 확인) |
 | 4    | DB 스키마             | 원격 DB에 마이그레이션 적용: `npx supabase link --project-ref <REF>` 후 `npx supabase db push`                                                                                                                                  |
 | 5    | CAPTCHA 설정 (권장)    | 배포 시 봇/남용 방지: [Cloudflare Dashboard](https://dash.cloudflare.com/)에서 Turnstile Site Key 발급 → 배포 환경 변수에 `VITE_CAPTCHA_SITE_KEY`와 `VITE_CAPTCHA_ENABLED=true` 설정 → [Supabase Dashboard](https://supabase.com/dashboard/project/_/auth/protection) → Authentication → Bot and Abuse Protection에서 CAPTCHA 활성화 및 Secret Key 설정 |
+| 6    | Auth Redirect URLs     | 비밀번호 찾기·이메일 로그인 링크용: Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL 추가. 예: `https://main.xxxxx.amplifyapp.com/#/` (HashRouter이므로 끝에 `/#/` 포함). `VITE_APP_URL`을 쓰면 해당 값과 동일하게 추가. |
 
 - **로컬에서만** 개발할 때는 `.env.local`에 로컬 URL(`http://127.0.0.1:54321`)을 두고, **배포 빌드**할 때는 호스팅 쪽 환경 변수에 클라우드 URL을 넣으면 됩니다. (`.env.local`은 빌드 서버에 없으므로 Amplify 등에 반드시 설정)
 - KR 종목 현재가가 안 나오면: Edge Function 배포 여부, Secrets 등록, 그리고 프론트가 **클라우드** Supabase URL을 쓰는지 확인하세요.
@@ -148,6 +149,8 @@ npm run build:analyze
 | --------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`/stocks/` 등 경로에서 404**          | (HashRouter 사용 시 해당 없음) 서버에 해당 경로 파일이 없으면 404 | 이 프로젝트는 HashRouter 사용으로 해결됨. 다른 호스팅에서 BrowserRouter 쓸 경우 해당 플랫폼의 SPA 리라이트 설정 필요.                                                                           |
 | **JS 로드 실패, MIME type "text/html"** | `/<*>` 리라이트가 .js/.css 요청까지 index.html로 보냄             | 기존 `/<*>` 규칙 삭제 또는 정적 파일 제외 규칙으로 교체. (이 프로젝트는 HashRouter라 Amplify 리라이트 불필요.)                                                                                  |
+| **Sandbox / allow-scripts 콘솔 에러**   | Turnstile(CAPTCHA) iframe이 CSP에 의해 스크립트 실행 차단         | 프로젝트 루트의 `customHttp.yml`이 Amplify에 적용되는지 확인. 적용되어 있으면 `frame-src`·`script-src`에 `https://challenges.cloudflare.com`가 포함됩니다. Amplify Console → Hosting → Custom headers에서도 동일하게 설정 가능. |
+| **비밀번호 찾기 시 `/auth/v1/recover` 500** | 비밀번호 재설정 링크의 redirect URL이 Supabase 허용 목록에 없음   | Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL을 **정확히** 추가. 예: `https://main.d3ctoqrfg8zs7q.amplifyapp.com/#/` (HashRouter이므로 `/#/` 포함). 배포 도메인이 다르면 해당 URL도 추가. |
 | **`kis-kr-price` 502 (Bad Gateway)**    | Edge Function 미배포 또는 Secrets 미설정                          | ① `npx supabase functions deploy kis-kr-price` 실행 ② Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 후 재배포 없이 반영됨 |
 
 **502가 계속 날 때** — 원인 확인 순서:
