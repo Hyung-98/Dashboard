@@ -35,6 +35,7 @@ export function Login() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<TurnstileInstance | null>(null);
   const anonymousCaptchaRef = useRef<TurnstileInstance | null>(null);
+  const forgotCaptchaRef = useRef<TurnstileInstance | null>(null);
 
   // CAPTCHA 활성화 여부 확인
   const captchaSiteKey = import.meta.env.VITE_CAPTCHA_SITE_KEY;
@@ -149,26 +150,42 @@ export function Login() {
     e.preventDefault();
     setError(null);
     setMessage(null);
+
     const emailError = validateEmail(email);
     if (emailError) {
       setError(emailError);
       return;
     }
+
+    // CAPTCHA 검증 (활성화된 경우)
+    if (captchaEnabled && !captchaToken) {
+      setError("보안 검증을 완료해 주세요.");
+      return;
+    }
+
     setLoading(true);
     try {
       // 이메일 링크가 접속 가능한 URL로 가도록 함 (localhost는 다른 기기/서버 꺼짐 시 연결 불가)
       const appOrigin = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, "");
       const path = window.location.pathname || "/";
       const redirectTo = path !== "/" ? `${appOrigin}${path}#/` : `${appOrigin}/#/`;
+
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
         redirectTo,
+        ...(captchaEnabled && captchaToken ? { captchaToken } : {}),
       });
       if (resetError) throw resetError;
+
       setMessage("가입하신 이메일 주소로 비밀번호 재설정 링크를 보냈습니다. 해당 메일함을 확인해 주세요.");
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
+      // 에러 발생 시 CAPTCHA 리셋
+      if (captchaEnabled) {
+        forgotCaptchaRef.current?.reset();
+        setCaptchaToken(null);
+      }
     }
   };
 
@@ -248,6 +265,20 @@ export function Login() {
                 재설정 링크는 입력하신 이메일 주소로만 발송됩니다.
               </p>
             </div>
+            {captchaEnabled && (
+              <div className="form-field" style={{ marginBottom: "1rem" }}>
+                <Turnstile
+                  ref={forgotCaptchaRef}
+                  siteKey={captchaSiteKey}
+                  onSuccess={(token) => setCaptchaToken(token)}
+                  onError={() => {
+                    setCaptchaToken(null);
+                    setError("보안 검증에 실패했습니다. 다시 시도해 주세요.");
+                  }}
+                  onExpire={() => setCaptchaToken(null)}
+                />
+              </div>
+            )}
             <button type="submit" className="btn-primary" disabled={loading} style={{ width: "100%", padding: "0.75rem 1rem" }}>
               {loading ? "처리 중..." : "재설정 링크 보내기"}
             </button>
@@ -259,6 +290,10 @@ export function Login() {
               setIsForgotPassword(false);
               setError(null);
               setMessage(null);
+              if (captchaEnabled) {
+                forgotCaptchaRef.current?.reset();
+                setCaptchaToken(null);
+              }
             }}
           >
             로그인으로 돌아가기
