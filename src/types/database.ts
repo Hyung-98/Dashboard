@@ -229,6 +229,35 @@ export interface Database {
           created_at?: string;
         };
       };
+      portfolio_targets: {
+        Row: {
+          id: string;
+          user_id: string;
+          symbol: string;
+          market: StockMarket;
+          target_pct: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          symbol: string;
+          market: StockMarket;
+          target_pct: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          symbol?: string;
+          market?: StockMarket;
+          target_pct?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       stock_holdings: {
         Row: {
           id: string;

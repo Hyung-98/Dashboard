@@ -10,6 +10,7 @@ import { priceKey } from "@/api/stockPrice";
 import type { StockTransaction } from "@/api/stockTransactions";
 import { Table, TableSkeleton, Modal } from "@/components/ui";
 import { StockForm, StockTransactionForm } from "@/components/forms";
+import { PortfolioAllocationCharts } from "@/components/PortfolioAllocationCharts";
 import type { Column } from "@/components/ui";
 import type { StockHolding } from "@/types/domain";
 
@@ -257,6 +258,11 @@ export function Stocks() {
           }}
         />
       </Modal>
+      <PortfolioAllocationCharts
+        holdings={holdings}
+        prices={prices}
+        pricesLoading={pricesLoading}
+      />
       {isLoading ? (
         <TableSkeleton rows={6} cols={8} />
       ) : (

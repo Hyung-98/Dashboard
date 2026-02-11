@@ -7,6 +7,7 @@ import { fetchIncomes, createIncome, updateIncome, deleteIncome } from "./income
 import { fetchStockHoldings, createStockHolding, updateStockHolding, deleteStockHolding } from "./stocks";
 import { fetchStockTransactions, createStockTransaction, deleteStockTransaction } from "./stockTransactions";
 import { fetchSavingsGoals, createSavingsGoal, updateSavingsGoal, deleteSavingsGoal } from "./savingsGoals";
+import { fetchPortfolioTargets, upsertPortfolioTargets } from "./portfolioTargets";
 import { getCurrentPrices, priceKey } from "./stockPrice";
 import type { StockHolding } from "@/types/domain";
 import { queryKeys } from "./queryKeys";
@@ -325,6 +326,23 @@ export function useDeleteSavingsGoal() {
     mutationFn: deleteSavingsGoal,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.savingsGoals() });
+    },
+  });
+}
+
+export function usePortfolioTargets() {
+  return useQuery({
+    queryKey: queryKeys.portfolioTargets(),
+    queryFn: fetchPortfolioTargets,
+  });
+}
+
+export function useUpsertPortfolioTargets() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: upsertPortfolioTargets,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.portfolioTargets() });
     },
   });
 }

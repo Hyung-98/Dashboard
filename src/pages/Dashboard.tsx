@@ -16,21 +16,8 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  BarChart,
-  Bar,
-} from "recharts";
+import ReactECharts from "echarts-for-react";
+import type { EChartsOption } from "echarts";
 import { useExpenses, useIncomes, useBudgets, useAssets, useStockHoldings, useStockPrices, useSavingsGoals } from "@/api/hooks";
 import { priceKey } from "@/api/stockPrice";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -669,18 +656,21 @@ export function Dashboard() {
           <div className="dashboard-chart-grid">
             {visibleChartOrder.map((id) => {
               if (id === "line") {
+                const option: EChartsOption = {
+                  color: ["#3b82f6"],
+                  tooltip: { trigger: "axis", formatter: (params: unknown) => {
+                    const p = (params as { name: string; value: number }[]).at(0);
+                    return p ? `${p.name}<br/>지출: ${p.value.toLocaleString()}원` : "";
+                  }},
+                  grid: { top: 16, right: 16, bottom: 24, left: 60 },
+                  xAxis: { type: "category", data: trendExpenseData.map((d) => d.name), axisLabel: { fontSize: 12 } },
+                  yAxis: { type: "value", axisLabel: { fontSize: 12, formatter: (v: number) => `${v}원` }, splitLine: { lineStyle: { color: gridStroke } } },
+                  series: [{ type: "line", data: trendExpenseData.map((d) => d.value), smooth: true, lineStyle: { width: 2 }, symbolSize: 8 }],
+                };
                 return (
                   <SortableChartCard key="line" id="line" title={`${CHART_PERIOD_LABELS[chartPeriod]} 지출 추이`} onHide={hideChart}>
                     {trendExpenseData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={280}>
-                        <LineChart data={trendExpenseData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                          <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}원`} />
-                          <Tooltip formatter={(v: number) => [`${v.toLocaleString()}원`, "지출"]} />
-                          <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <ReactECharts option={option} style={{ height: 280, width: "100%" }} opts={{ renderer: "svg" }} />
                     ) : (
                       <div style={emptyChartStyle}>데이터 없음</div>
                     )}
@@ -688,28 +678,19 @@ export function Dashboard() {
                 );
               }
               if (id === "pie") {
+                const option: EChartsOption = {
+                  color: COLORS,
+                  tooltip: { trigger: "item", formatter: (params: unknown) => {
+                    const p = params as { name: string; value: number; percent: number };
+                    return `${p.name}: ${p.value.toLocaleString()}원 (${p.percent}%)`;
+                  }},
+                  legend: { bottom: 0, type: "scroll" },
+                  series: [{ type: "pie", radius: "65%", center: ["50%", "45%"], data: categoryData, label: { formatter: "{b} {d}%", fontSize: 12 } }],
+                };
                 return (
                   <SortableChartCard key="pie" id="pie" title="지출 카테고리별 비율" onHide={hideChart}>
                     {categoryData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={280}>
-                        <PieChart>
-                          <Pie
-                            data={categoryData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={80}
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          >
-                            {categoryData.map((_, i) => (
-                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(v: number) => `${v.toLocaleString()}원`} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <ReactECharts option={option} style={{ height: 280, width: "100%" }} opts={{ renderer: "svg" }} />
                     ) : (
                       <div style={emptyChartStyle}>데이터 없음</div>
                     )}
@@ -717,23 +698,21 @@ export function Dashboard() {
                 );
               }
               if (id === "lineIncome") {
+                const option: EChartsOption = {
+                  color: ["#10b981"],
+                  tooltip: { trigger: "axis", formatter: (params: unknown) => {
+                    const p = (params as { name: string; value: number }[]).at(0);
+                    return p ? `${p.name}<br/>수입: ${p.value.toLocaleString()}원` : "";
+                  }},
+                  grid: { top: 16, right: 16, bottom: 24, left: 60 },
+                  xAxis: { type: "category", data: trendIncomeData.map((d) => d.name), axisLabel: { fontSize: 12 } },
+                  yAxis: { type: "value", axisLabel: { fontSize: 12, formatter: (v: number) => `${v}원` }, splitLine: { lineStyle: { color: gridStroke } } },
+                  series: [{ type: "line", data: trendIncomeData.map((d) => d.value), smooth: true, lineStyle: { width: 2 }, symbolSize: 8 }],
+                };
                 return (
-                  <SortableChartCard
-                    key="lineIncome"
-                    id="lineIncome"
-                    title={`${CHART_PERIOD_LABELS[chartPeriod]} 수입 추이`}
-                    onHide={hideChart}
-                  >
+                  <SortableChartCard key="lineIncome" id="lineIncome" title={`${CHART_PERIOD_LABELS[chartPeriod]} 수입 추이`} onHide={hideChart}>
                     {trendIncomeData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={280}>
-                        <LineChart data={trendIncomeData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                          <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}원`} />
-                          <Tooltip formatter={(v: number) => [`${v.toLocaleString()}원`, "수입"]} />
-                          <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <ReactECharts option={option} style={{ height: 280, width: "100%" }} opts={{ renderer: "svg" }} />
                     ) : (
                       <div style={emptyChartStyle}>데이터 없음</div>
                     )}
@@ -741,28 +720,19 @@ export function Dashboard() {
                 );
               }
               if (id === "pieIncome") {
+                const option: EChartsOption = {
+                  color: COLORS,
+                  tooltip: { trigger: "item", formatter: (params: unknown) => {
+                    const p = params as { name: string; value: number; percent: number };
+                    return `${p.name}: ${p.value.toLocaleString()}원 (${p.percent}%)`;
+                  }},
+                  legend: { bottom: 0, type: "scroll" },
+                  series: [{ type: "pie", radius: "65%", center: ["50%", "45%"], data: incomeCategoryData, label: { formatter: "{b} {d}%", fontSize: 12 } }],
+                };
                 return (
                   <SortableChartCard key="pieIncome" id="pieIncome" title="수입 카테고리별 비율" onHide={hideChart}>
                     {incomeCategoryData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={280}>
-                        <PieChart>
-                          <Pie
-                            data={incomeCategoryData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={80}
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          >
-                            {incomeCategoryData.map((_, i) => (
-                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(v: number) => `${v.toLocaleString()}원`} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <ReactECharts option={option} style={{ height: 280, width: "100%" }} opts={{ renderer: "svg" }} />
                     ) : (
                       <div style={emptyChartStyle}>데이터 없음</div>
                     )}
@@ -770,25 +740,27 @@ export function Dashboard() {
                 );
               }
               if (id === "barBudget") {
+                const option: EChartsOption = {
+                  color: ["#94a3b8", "#3b82f6"],
+                  tooltip: { trigger: "axis", formatter: (params: unknown) => {
+                    const items = params as { seriesName: string; value: number; name: string }[];
+                    const first = items.at(0);
+                    if (!first) return "";
+                    return `${first.name}<br/>${items.map((i) => `${i.seriesName}: ${i.value.toLocaleString()}원`).join("<br/>")}`;
+                  }},
+                  legend: { bottom: 0, data: ["예산", "사용액"] },
+                  grid: { top: 16, right: 16, bottom: 60, left: 60 },
+                  xAxis: { type: "category", data: budgetVsSpentData.map((d) => d.name), axisLabel: { fontSize: 10, rotate: 45 } },
+                  yAxis: { type: "value", axisLabel: { fontSize: 12, formatter: (v: number) => `${v}원` }, splitLine: { lineStyle: { color: gridStroke } } },
+                  series: [
+                    { type: "bar", name: "예산", data: budgetVsSpentData.map((d) => d.budget), itemStyle: { borderRadius: [4, 4, 0, 0] } },
+                    { type: "bar", name: "사용액", data: budgetVsSpentData.map((d) => d.spent), itemStyle: { borderRadius: [4, 4, 0, 0] } },
+                  ],
+                };
                 return (
                   <SortableChartCard key="barBudget" id="barBudget" title="예산 대비 사용액" onHide={hideChart}>
                     {budgetVsSpentData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={280}>
-                        <BarChart data={budgetVsSpentData} margin={{ top: 8, right: 8, left: 8, bottom: 60 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                          <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
-                          <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}원`} />
-                          <Tooltip
-                            formatter={(v: number, name: string) => [
-                              `${v.toLocaleString()}원`,
-                              name === "budget" ? "예산" : "사용액",
-                            ]}
-                          />
-                          <Legend />
-                          <Bar dataKey="budget" name="예산" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="spent" name="사용액" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <ReactECharts option={option} style={{ height: 280, width: "100%" }} opts={{ renderer: "svg" }} />
                     ) : (
                       <div style={emptyChartStyle}>데이터 없음</div>
                     )}
@@ -796,28 +768,19 @@ export function Dashboard() {
                 );
               }
               if (id === "pieAsset") {
+                const option: EChartsOption = {
+                  color: COLORS,
+                  tooltip: { trigger: "item", formatter: (params: unknown) => {
+                    const p = params as { name: string; value: number; percent: number };
+                    return `${p.name}: ${p.value.toLocaleString()}원 (${p.percent}%)`;
+                  }},
+                  legend: { bottom: 0, type: "scroll" },
+                  series: [{ type: "pie", radius: "65%", center: ["50%", "45%"], data: assetChartData, label: { formatter: "{b} {d}%", fontSize: 12 } }],
+                };
                 return (
                   <SortableChartCard key="pieAsset" id="pieAsset" title="자산 카테고리별 비율" onHide={hideChart}>
                     {assetChartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={280}>
-                        <PieChart>
-                          <Pie
-                            data={assetChartData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={80}
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          >
-                            {assetChartData.map((_, i) => (
-                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(v: number) => `${v.toLocaleString()}원`} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <ReactECharts option={option} style={{ height: 280, width: "100%" }} opts={{ renderer: "svg" }} />
                     ) : (
                       <div style={emptyChartStyle}>데이터 없음</div>
                     )}

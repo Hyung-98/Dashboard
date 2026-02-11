@@ -11,4 +11,5 @@ export const queryKeys = {
   stocks: () => [...queryKeys.all, "stocks"] as const,
   stockTransactions: () => [...queryKeys.all, "stockTransactions"] as const,
   savingsGoals: () => [...queryKeys.all, "savingsGoals"] as const,
+  portfolioTargets: () => [...queryKeys.all, "portfolioTargets"] as const,
 };
