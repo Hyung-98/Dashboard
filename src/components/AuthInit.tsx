@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api/queryKeys";
-import { supabase } from "@/lib/supabase";
+import { supabase, consumePasswordRecoveryFlag } from "@/lib/supabase";
 import { getAuthErrorMessage } from "@/lib/authErrors";
 import { Login } from "@/pages/Login";
 
@@ -26,6 +26,11 @@ export function AuthInit({ children }: AuthInitProps) {
       setSession(s);
       setReady(true);
       previousUserIdRef.current = s?.user?.id ?? null;
+
+      // 모듈 레벨에서 캡처된 PASSWORD_RECOVERY 이벤트 확인 (레이스 컨디션 대응)
+      if (s && consumePasswordRecoveryFlag()) {
+        setNeedsNewPassword(true);
+      }
     });
 
     const {
