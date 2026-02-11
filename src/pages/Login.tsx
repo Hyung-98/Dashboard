@@ -426,7 +426,7 @@ export function Login() {
               </div>
             </>
           )}
-          {captchaEnabled && (
+          {/* {captchaEnabled && (
             <div className="form-field" style={{ marginBottom: "1rem" }}>
               <Turnstile
                 ref={captchaRef}
@@ -441,7 +441,7 @@ export function Login() {
                 }}
               />
             </div>
-          )}
+          )} */}
 
           <button type="submit" className="btn-primary" disabled={loading} style={{ width: "100%", padding: "0.75rem 1rem" }}>
             {loading ? "처리 중..." : isSignUp ? "가입" : "로그인"}
@@ -480,7 +480,7 @@ export function Login() {
         </button>
 
         {captchaEnabled && (
-          <div style={{ marginBottom: "1rem" }}>
+          <div style={{ marginTop: "1rem" }}>
             <Turnstile
               ref={anonymousCaptchaRef}
               siteKey={captchaSiteKey}
