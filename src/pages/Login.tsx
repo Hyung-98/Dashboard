@@ -109,7 +109,7 @@ export function Login() {
     }
 
     // CAPTCHA 검증 (활성화된 경우)
-    if (captchaEnabled && isSignUp && !captchaToken) {
+    if (captchaEnabled && !captchaToken) {
       setError("보안 검증을 완료해 주세요.");
       return;
     }
@@ -124,25 +124,24 @@ export function Login() {
         });
         if (signUpError) throw signUpError;
         setMessage("가입 확인 메일을 보냈습니다. 이메일에서 링크를 눌러 확인해 주세요.");
-        // CAPTCHA 리셋
-        if (captchaEnabled) {
-          captchaRef.current?.reset();
-          setCaptchaToken(null);
-        }
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          ...(captchaEnabled && captchaToken ? { options: { captchaToken } } : {}),
+        });
         if (signInError) throw signInError;
         // Session is set; AuthInit will re-render and show App
       }
     } catch (err) {
       setError(getAuthErrorMessage(err));
-      // 에러 발생 시 CAPTCHA 리셋
-      if (captchaEnabled && isSignUp) {
+    } finally {
+      setLoading(false);
+      // CAPTCHA 리셋
+      if (captchaEnabled) {
         captchaRef.current?.reset();
         setCaptchaToken(null);
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -425,23 +424,23 @@ export function Login() {
                   이용약관 및 개인정보 수집·이용에 동의합니다
                 </label>
               </div>
-              {captchaEnabled && (
-                <div className="form-field" style={{ marginBottom: "1rem" }}>
-                  <Turnstile
-                    ref={captchaRef}
-                    siteKey={captchaSiteKey}
-                    onSuccess={(token) => setCaptchaToken(token)}
-                    onError={() => {
-                      setCaptchaToken(null);
-                      setError("보안 검증에 실패했습니다. 다시 시도해 주세요.");
-                    }}
-                    onExpire={() => {
-                      setCaptchaToken(null);
-                    }}
-                  />
-                </div>
-              )}
             </>
+          )}
+          {captchaEnabled && (
+            <div className="form-field" style={{ marginBottom: "1rem" }}>
+              <Turnstile
+                ref={captchaRef}
+                siteKey={captchaSiteKey}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onError={() => {
+                  setCaptchaToken(null);
+                  setError("보안 검증에 실패했습니다. 다시 시도해 주세요.");
+                }}
+                onExpire={() => {
+                  setCaptchaToken(null);
+                }}
+              />
+            </div>
           )}
 
           <button type="submit" className="btn-primary" disabled={loading} style={{ width: "100%", padding: "0.75rem 1rem" }}>
