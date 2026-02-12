@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCategories, useDeleteCategory } from "@/api/hooks";
 import { Table, TableSkeleton, Modal } from "@/components/ui";
 import { CategoryForm } from "@/components/forms";
+import { supabase } from "@/lib/supabase";
 import type { Column } from "@/components/ui";
 import type { Category } from "@/types/domain";
 
@@ -14,8 +15,15 @@ const typeLabels: Record<string, string> = {
 export function Categories() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const { data: categories = [], isLoading, isError, error } = useCategories();
   const deleteCategory = useDeleteCategory();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAnonymous(session?.user?.is_anonymous ?? false);
+    });
+  }, []);
 
   const columns: Column<Category>[] = [
     {
@@ -28,27 +36,31 @@ export function Categories() {
       header: "유형",
       render: (row) => typeLabels[row.type] ?? row.type,
     },
-    {
-      key: "actions",
-      header: "작업",
-      render: (row) => (
-        <span onClick={(e) => e.stopPropagation()}>
-          <button type="button" className="btn-edit" onClick={() => setEditingCategory(row)}>
-            수정
-          </button>
-          <button
-            type="button"
-            className="btn-danger"
-            onClick={() => {
-              if (window.confirm("이 카테고리를 삭제할까요? 연결된 지출/예산/자산에 영향을 줄 수 있습니다."))
-                deleteCategory.mutate(row.id);
-            }}
-          >
-            삭제
-          </button>
-        </span>
-      ),
-    },
+    ...(!isAnonymous
+      ? [
+          {
+            key: "actions" as const,
+            header: "작업",
+            render: (row: Category) => (
+              <span onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                <button type="button" className="btn-edit" onClick={() => setEditingCategory(row)}>
+                  수정
+                </button>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={() => {
+                    if (window.confirm("이 카테고리를 삭제할까요? 연결된 지출/예산/자산에 영향을 줄 수 있습니다."))
+                      deleteCategory.mutate(row.id);
+                  }}
+                >
+                  삭제
+                </button>
+              </span>
+            ),
+          },
+        ]
+      : []),
   ];
 
   if (isError) {
@@ -63,10 +75,17 @@ export function Categories() {
     <div>
       <header className="page-header">
         <h1>카테고리 관리</h1>
-        <button type="button" className="btn-primary" onClick={() => setAddModalOpen(true)}>
-          카테고리 추가
-        </button>
+        {!isAnonymous && (
+          <button type="button" className="btn-primary" onClick={() => setAddModalOpen(true)}>
+            카테고리 추가
+          </button>
+        )}
       </header>
+      {isAnonymous && (
+        <p style={{ color: "var(--color-text-secondary, #64748b)", marginBottom: "1rem", fontSize: "0.875rem" }}>
+          익명 사용자는 카테고리를 조회만 할 수 있습니다. 수정하려면 회원가입 후 이용하세요.
+        </p>
+      )}
       <Modal
         open={addModalOpen || editingCategory != null}
         onClose={() => {

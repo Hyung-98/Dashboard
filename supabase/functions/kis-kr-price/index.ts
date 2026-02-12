@@ -101,6 +101,35 @@ async function fetchTokenFromKIS(
   return { token: tok, expiresAt };
 }
 
+/** Invalidate cached token so next getAccessToken fetches a fresh one. */
+function invalidateToken(demo: boolean) {
+  const cacheKey = demo ? "demo" : "real";
+  delete tokenCache[cacheKey];
+  delete tokenFetchPromise[cacheKey];
+}
+
+/** Force-refresh: bypass cache, fetch new token from KIS, update DB. */
+async function forceRefreshToken(base: string, appKey: string, appSecret: string, demo: boolean): Promise<string> {
+  const cacheKey = demo ? "demo" : "real";
+  invalidateToken(demo);
+  const { token, expiresAt } = await fetchTokenFromKIS(base, appKey, appSecret);
+  tokenCache[cacheKey] = { token, expiresAt };
+  try {
+    const db = getSupabase() as {
+      from: (table: string) => {
+        upsert: (row: Record<string, unknown>, opts: { onConflict: string }) => Promise<unknown>;
+      };
+    };
+    await db.from("kis_token_cache").upsert(
+      { env: cacheKey, token, expires_at: new Date(expiresAt).toISOString(), refresh_started_at: null },
+      { onConflict: "env" },
+    );
+  } catch {
+    // DB update failure is non-fatal
+  }
+  return token;
+}
+
 /** Get access token: in-memory cache, then DB cache (shared across isolates), then KIS with soft lock. */
 async function getAccessToken(base: string, appKey: string, appSecret: string, demo: boolean): Promise<string> {
   const now = Date.now();
@@ -187,7 +216,13 @@ async function getAccessToken(base: string, appKey: string, appSecret: string, d
   return tokenPromise;
 }
 
-/** Fetch one symbol price; returns null on error. */
+interface FetchOnePriceResult {
+  price: number | null;
+  error?: string;
+  tokenExpired?: boolean;
+}
+
+/** Fetch one symbol price; returns { price, error } for diagnostics. */
 async function fetchOnePrice(
   base: string,
   trId: string,
@@ -195,7 +230,7 @@ async function fetchOnePrice(
   appSecret: string,
   accessToken: string,
   sixDigitSymbol: string
-): Promise<number | null> {
+): Promise<FetchOnePriceResult> {
   const priceUrl = new URL(`${base}/uapi/domestic-stock/v1/quotations/inquire-price`);
   priceUrl.searchParams.set("FID_COND_MRKT_DIV_CODE", "J");
   priceUrl.searchParams.set("FID_INPUT_ISCD", sixDigitSymbol);
@@ -212,17 +247,30 @@ async function fetchOnePrice(
     },
   });
 
-  if (!priceRes.ok) return null;
+  if (!priceRes.ok) {
+    const text = await priceRes.text().catch(() => "");
+    const expired = text.includes("EGW00123");
+    return { price: null, error: `HTTP ${priceRes.status}: ${text.slice(0, 200)}`, tokenExpired: expired };
+  }
 
   const priceData = (await priceRes.json()) as KISPriceResponse;
-  if (priceData.rt_cd !== "0") return null;
+  if (priceData.rt_cd !== "0") {
+    const msg = priceData.output?.msg1 ?? "unknown";
+    const msgCd = priceData.output?.msg_cd;
+    const expired = msgCd === "EGW00123";
+    return { price: null, error: `rt_cd=${priceData.rt_cd} msg=${msg}`, tokenExpired: expired };
+  }
 
   const priceStr = priceData.output?.stck_prpr;
-  if (priceStr == null || priceStr === "") return null;
+  if (priceStr == null || priceStr === "") {
+    return { price: null, error: "stck_prpr is empty" };
+  }
 
   const price = Number(priceStr);
-  if (!Number.isFinite(price) || price < 0) return null;
-  return price;
+  if (!Number.isFinite(price) || price < 0) {
+    return { price: null, error: `invalid price value: ${priceStr}` };
+  }
+  return { price };
 }
 
 Deno.serve(async (req) => {
@@ -269,21 +317,48 @@ Deno.serve(async (req) => {
     const trId = demo ? TR_ID_DEMO : TR_ID_REAL;
 
     try {
-      const accessToken = await getAccessToken(base, appKey, appSecret, demo);
+      let accessToken = await getAccessToken(base, appKey, appSecret, demo);
 
       if (isBatch) {
         const prices: Record<string, number | null> = {};
-        for (const sym of symbols) {
-          prices[sym] = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, sym);
+        const errors: Record<string, string> = {};
+        // Fetch first symbol to detect expired token early
+        const firstResult = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, symbols[0]);
+        if (firstResult.tokenExpired) {
+          // Token expired at KIS side — force refresh and retry all
+          accessToken = await forceRefreshToken(base, appKey, appSecret, demo);
+          for (const sym of symbols) {
+            const result = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, sym);
+            prices[sym] = result.price;
+            if (result.error) errors[sym] = result.error;
+          }
+        } else {
+          prices[symbols[0]] = firstResult.price;
+          if (firstResult.error) errors[symbols[0]] = firstResult.error;
+          for (let i = 1; i < symbols.length; i++) {
+            const result = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, symbols[i]);
+            prices[symbols[i]] = result.price;
+            if (result.error) errors[symbols[i]] = result.error;
+          }
         }
-        return jsonResponse({ prices }, 200);
+        const resp: Record<string, unknown> = { prices };
+        if (Object.keys(errors).length > 0) resp.errors = errors;
+        return jsonResponse(resp, 200);
       }
 
-      const price = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, symbol);
-      if (price === null) {
-        return jsonResponse({ error: "KIS price unavailable or invalid" }, 502);
+      const result = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, symbol);
+      if (result.tokenExpired) {
+        accessToken = await forceRefreshToken(base, appKey, appSecret, demo);
+        const retry = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, symbol);
+        if (retry.price === null) {
+          return jsonResponse({ error: retry.error ?? "KIS price unavailable after token refresh" }, 502);
+        }
+        return jsonResponse({ price: retry.price }, 200);
       }
-      return jsonResponse({ price }, 200);
+      if (result.price === null) {
+        return jsonResponse({ error: result.error ?? "KIS price unavailable or invalid" }, 502);
+      }
+      return jsonResponse({ price: result.price }, 200);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       return jsonResponse({ error: message }, 502);

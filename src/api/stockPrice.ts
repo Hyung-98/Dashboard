@@ -53,13 +53,20 @@ export async function getCurrentPrice(symbol: string, market: StockMarket): Prom
     const res = await fetch(url);
     const data = (await res.json()) as {
       "Global Quote"?: { "05. price"?: string };
+      Note?: string;
+      Information?: string;
     };
+    if (data.Note || data.Information) {
+      console.warn(`Alpha Vantage rate limit: ${data.Note ?? data.Information}`);
+      return null;
+    }
     const quote = data["Global Quote"];
     const priceStr = quote?.["05. price"];
     if (priceStr == null || priceStr === "") return null;
     const price = Number(priceStr);
     return Number.isFinite(price) && price >= 0 ? price : null;
-  } catch {
+  } catch (e) {
+    console.error("Alpha Vantage:", e);
     return null;
   }
 }
@@ -91,9 +98,9 @@ export async function getCurrentPrices(
         },
         body: JSON.stringify({ symbols: krItems.map((i) => i.symbol.trim()) }),
       });
-      let data: { prices?: Record<string, number | null>; error?: string } | undefined;
+      let data: { prices?: Record<string, number | null>; errors?: Record<string, string>; error?: string } | undefined;
       try {
-        data = (await res.json()) as { prices?: Record<string, number | null>; error?: string };
+        data = (await res.json()) as typeof data;
       } catch {
         console.error("kis-kr-price: invalid JSON response");
         krItems.forEach((i) => (result[priceKey(i.market, i.symbol)] = null));
@@ -105,6 +112,9 @@ export async function getCurrentPrices(
           krItems.forEach((i) => (result[priceKey(i.market, i.symbol)] = null));
         } else {
           const prices = data.prices ?? {};
+          if (data.errors && Object.keys(data.errors).length > 0) {
+            console.error("[kis-kr-price] errors:", data.errors);
+          }
           const normalized = (s: string) => s.replace(/\D/g, "").padStart(6, "0").slice(0, 6);
           for (const { symbol, market } of krItems) {
             const key = priceKey(market, symbol);

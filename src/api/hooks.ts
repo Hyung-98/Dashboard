@@ -180,7 +180,7 @@ export function useStockHoldings() {
   });
 }
 
-const STOCK_PRICE_STALE_MS = 10 * 60;
+const STOCK_PRICE_STALE_MS = 10 * 60 * 1000;
 
 export function useStockPrices(holdings: StockHolding[]) {
   const keys = holdings
