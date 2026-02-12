@@ -24,7 +24,7 @@ export function StockForm({ initialData, onSuccess }: StockFormProps) {
   const [symbol, setSymbol] = useState<string>(initialData?.symbol ?? "");
   const [market, setMarket] = useState<"KR" | "US">(initialData?.market ?? "KR");
   const [exchange, setExchange] = useState<string>(
-    (initialData as { exchange?: string | null })?.exchange ?? "NAS"
+    ((initialData as unknown as { exchange?: string | null })?.exchange as string) ?? "NAS"
   );
   const [name, setName] = useState<string>(initialData?.name ?? "");
   const [quantity, setQuantity] = useState<string>(initialData?.quantity != null ? String(initialData.quantity) : "");
@@ -63,22 +63,22 @@ export function StockForm({ initialData, onSuccess }: StockFormProps) {
           payload: {
             symbol: symbol.trim(),
             market,
-            exchange: market === "US" ? exchange : null,
             name: name.trim() || null,
             quantity: quantityNum,
             average_buy_price: averageNum,
             memo: memo.trim() || null,
+            ...(market === "US" ? { exchange } : {}),
           },
         });
       } else {
         await createStockHolding.mutateAsync({
           symbol: symbol.trim(),
           market,
-          exchange: market === "US" ? exchange : null,
           name: name.trim() || null,
           quantity: quantityNum,
           average_buy_price: averageNum,
           memo: memo.trim() || null,
+          ...(market === "US" ? { exchange } : {}),
         });
       }
       onSuccess?.();
@@ -136,7 +136,7 @@ export function StockForm({ initialData, onSuccess }: StockFormProps) {
           <Select
             options={exchangeOptions}
             value={exchange}
-            onChange={(v) => setExchange(v)}
+            onChange={(v) => setExchange(v ?? "NAS")}
             placeholder="거래소 선택"
           />
         </div>
