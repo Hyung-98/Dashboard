@@ -189,7 +189,14 @@ export function useStockPrices(holdings: StockHolding[]) {
     .join(",");
   return useQuery({
     queryKey: [...queryKeys.stocks(), "prices", keys],
-    queryFn: () => getCurrentPrices(holdings.map((h) => ({ symbol: h.symbol, market: h.market }))),
+    queryFn: () =>
+      getCurrentPrices(
+        holdings.map((h) => ({
+          symbol: h.symbol,
+          market: h.market,
+          exchange: (h as { exchange?: string | null }).exchange ?? undefined,
+        }))
+      ),
     enabled: holdings.length > 0,
     staleTime: STOCK_PRICE_STALE_MS,
   });

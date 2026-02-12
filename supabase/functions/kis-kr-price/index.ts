@@ -10,14 +10,27 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 const KIS_REAL_BASE = "https://openapi.koreainvestment.com:9443";
 const KIS_DEMO_BASE = "https://openapivts.koreainvestment.com:29443";
-const TR_ID_REAL = "FHKST01010100";
-const TR_ID_DEMO = "VHKST01010100";
+// Domestic stock TR IDs
+const TR_ID_REAL_DOMESTIC = "FHKST01010100";
+const TR_ID_DEMO_DOMESTIC = "VHKST01010100";
+// Overseas stock TR IDs
+const TR_ID_REAL_OVERSEAS = "HHDFS00000300";
+const TR_ID_DEMO_OVERSEAS = "HHDFSCNT0200";
 
 /** KIS expects 6-digit 종목코드; pad with leading zeros. */
 function toSixDigitSymbol(s: string): string {
   const t = s.replace(/\D/g, "");
   if (t.length >= 6) return t.slice(0, 6);
   return t.padStart(6, "0");
+}
+
+/** Get exchange code for US stocks. Defaults to NAS (Nasdaq). */
+function getExchangeCode(exchange?: string): string {
+  if (!exchange) return "NAS";
+  const normalized = exchange.toUpperCase();
+  if (normalized === "NYS" || normalized === "NYSE") return "NYS";
+  if (normalized === "AMS" || normalized === "AMEX") return "AMS";
+  return "NAS";
 }
 
 /** In-memory token cache by env (real/demo), reused within same isolate. */
@@ -33,6 +46,10 @@ interface ReqBody {
   /** Batch: multiple symbols in one request; one token, then one price call per symbol. */
   symbols?: string[];
   demo?: boolean;
+  /** Market for single symbol request. */
+  market?: "KR" | "US";
+  /** Batch with market info: multiple symbols with their markets. */
+  items?: Array<{ symbol: string; market: "KR" | "US"; exchange?: string }>;
 }
 
 interface TokenResponse {
@@ -222,10 +239,30 @@ interface FetchOnePriceResult {
   tokenExpired?: boolean;
 }
 
+interface FetchOverseasPriceResult {
+  price: number | null;
+  exchangeRate?: number;
+  error?: string;
+  tokenExpired?: boolean;
+}
+
+interface KISOverseasPriceOutput {
+  last?: string;
+  t_rate?: string;
+  rt_cd?: string;
+  msg_cd?: string;
+  msg1?: string;
+}
+
+interface KISOverseasPriceResponse {
+  rt_cd?: string;
+  output?: KISOverseasPriceOutput;
+}
+
 /** Fetch one symbol price; returns { price, error } for diagnostics. */
 async function fetchOnePrice(
   base: string,
-  trId: string,
+  trIdDomestic: string,
   appKey: string,
   appSecret: string,
   accessToken: string,
@@ -241,7 +278,7 @@ async function fetchOnePrice(
       Authorization: `Bearer ${accessToken}`,
       appkey: appKey,
       appsecret: appSecret,
-      tr_id: trId,
+      tr_id: trIdDomestic,
       custtype: "P",
       "Content-Type": "application/json",
     },
@@ -273,6 +310,67 @@ async function fetchOnePrice(
   return { price };
 }
 
+/** Fetch overseas (US) stock price; returns { price (USD), exchangeRate, error } for diagnostics. */
+async function fetchOverseasPrice(
+  base: string,
+  trId: string,
+  appKey: string,
+  appSecret: string,
+  accessToken: string,
+  exchangeCode: string,
+  symbol: string
+): Promise<FetchOverseasPriceResult> {
+  const priceUrl = new URL(`${base}/uapi/overseas-price/v1/quotations/price`);
+  priceUrl.searchParams.set("AUTH", "");
+  priceUrl.searchParams.set("EXCD", exchangeCode);
+  priceUrl.searchParams.set("SYMB", symbol.toUpperCase());
+
+  const priceRes = await fetch(priceUrl.toString(), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      appkey: appKey,
+      appsecret: appSecret,
+      tr_id: trId,
+      custtype: "P",
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!priceRes.ok) {
+    const text = await priceRes.text().catch(() => "");
+    const expired = text.includes("EGW00123");
+    return { price: null, error: `HTTP ${priceRes.status}: ${text.slice(0, 200)}`, tokenExpired: expired };
+  }
+
+  const priceData = (await priceRes.json()) as KISOverseasPriceResponse;
+  if (priceData.rt_cd !== "0") {
+    const msg = priceData.output?.msg1 ?? "unknown";
+    const msgCd = priceData.output?.msg_cd;
+    const expired = msgCd === "EGW00123";
+    return { price: null, error: `rt_cd=${priceData.rt_cd} msg=${msg}`, tokenExpired: expired };
+  }
+
+  const priceStr = priceData.output?.last;
+  const rateStr = priceData.output?.t_rate;
+
+  if (priceStr == null || priceStr === "") {
+    return { price: null, error: "last (price) is empty" };
+  }
+
+  const priceUSD = Number(priceStr);
+  if (!Number.isFinite(priceUSD) || priceUSD < 0) {
+    return { price: null, error: `invalid price value: ${priceStr}` };
+  }
+
+  const exchangeRate = rateStr ? Number(rateStr) : undefined;
+  if (exchangeRate !== undefined && (!Number.isFinite(exchangeRate) || exchangeRate <= 0)) {
+    return { price: null, error: `invalid exchange rate: ${rateStr}` };
+  }
+
+  return { price: priceUSD, exchangeRate };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -291,16 +389,22 @@ Deno.serve(async (req) => {
     }
 
     const demo = Boolean(body.demo);
+
+    // Parse items batch (new format with market info)
+    const items = Array.isArray(body.items) ? body.items : [];
+    const hasItems = items.length > 0;
+
+    // Legacy: single symbol or symbols array (KR only)
     const rawSymbol = typeof body.symbol === "string" ? body.symbol.trim() : "";
     const symbol = toSixDigitSymbol(rawSymbol);
     const symbolsRaw = Array.isArray(body.symbols)
       ? (body.symbols as string[]).map((s) => (typeof s === "string" ? s.trim() : "")).filter(Boolean)
       : [];
     const symbols = symbolsRaw.map(toSixDigitSymbol);
-    const isBatch = symbols.length > 0;
+    const isLegacyBatch = symbols.length > 0;
 
-    if (!isBatch && !rawSymbol) {
-      return jsonResponse({ error: "symbol or symbols is required" }, 400);
+    if (!hasItems && !isLegacyBatch && !rawSymbol) {
+      return jsonResponse({ error: "symbol, symbols, or items is required" }, 400);
     }
 
     const appKey = demo ? Deno.env.get("MOK_KIS_APP_KEY") : Deno.env.get("KIS_APP_KEY");
@@ -314,21 +418,80 @@ Deno.serve(async (req) => {
     }
 
     const base = demo ? KIS_DEMO_BASE : KIS_REAL_BASE;
-    const trId = demo ? TR_ID_DEMO : TR_ID_REAL;
+    const trIdDomestic = demo ? TR_ID_DEMO_DOMESTIC : TR_ID_REAL_DOMESTIC;
+    const trIdOverseas = demo ? TR_ID_DEMO_OVERSEAS : TR_ID_REAL_OVERSEAS;
 
     try {
       let accessToken = await getAccessToken(base, appKey, appSecret, demo);
 
-      if (isBatch) {
+      // New batch format with market info (items)
+      if (hasItems) {
+        const prices: Record<string, number | null> = {};
+        const errors: Record<string, string> = {};
+        let tokenRefreshed = false;
+
+        for (const item of items) {
+          const itemSymbol = item.symbol.trim();
+          const itemMarket = item.market ?? "KR";
+          const key = `${itemMarket}:${itemSymbol}`;
+
+          try {
+            if (itemMarket === "KR") {
+              const normalizedSymbol = toSixDigitSymbol(itemSymbol);
+              const result = await fetchOnePrice(base, trIdDomestic, appKey, appSecret, accessToken, normalizedSymbol);
+
+              if (result.tokenExpired && !tokenRefreshed) {
+                accessToken = await forceRefreshToken(base, appKey, appSecret, demo);
+                tokenRefreshed = true;
+                const retry = await fetchOnePrice(base, trIdDomestic, appKey, appSecret, accessToken, normalizedSymbol);
+                prices[key] = retry.price;
+                if (retry.error) errors[key] = retry.error;
+              } else {
+                prices[key] = result.price;
+                if (result.error) errors[key] = result.error;
+              }
+            } else if (itemMarket === "US") {
+              const exchangeCode = getExchangeCode(item.exchange);
+              const result = await fetchOverseasPrice(base, trIdOverseas, appKey, appSecret, accessToken, exchangeCode, itemSymbol);
+
+              if (result.tokenExpired && !tokenRefreshed) {
+                accessToken = await forceRefreshToken(base, appKey, appSecret, demo);
+                tokenRefreshed = true;
+                const retry = await fetchOverseasPrice(base, trIdOverseas, appKey, appSecret, accessToken, exchangeCode, itemSymbol);
+                // Convert USD to KRW
+                const priceKRW = retry.price && retry.exchangeRate ? retry.price * retry.exchangeRate : retry.price;
+                prices[key] = priceKRW;
+                if (retry.error) errors[key] = retry.error;
+              } else {
+                // Convert USD to KRW
+                const priceKRW = result.price && result.exchangeRate ? result.price * result.exchangeRate : result.price;
+                prices[key] = priceKRW;
+                if (result.error) errors[key] = result.error;
+              }
+            }
+          } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            errors[key] = message;
+            prices[key] = null;
+          }
+        }
+
+        const resp: Record<string, unknown> = { prices };
+        if (Object.keys(errors).length > 0) resp.errors = errors;
+        return jsonResponse(resp, 200);
+      }
+
+      // Legacy batch format (symbols array, KR only)
+      if (isLegacyBatch) {
         const prices: Record<string, number | null> = {};
         const errors: Record<string, string> = {};
         // Fetch first symbol to detect expired token early
-        const firstResult = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, symbols[0]);
+        const firstResult = await fetchOnePrice(base, trIdDomestic, appKey, appSecret, accessToken, symbols[0]);
         if (firstResult.tokenExpired) {
           // Token expired at KIS side — force refresh and retry all
           accessToken = await forceRefreshToken(base, appKey, appSecret, demo);
           for (const sym of symbols) {
-            const result = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, sym);
+            const result = await fetchOnePrice(base, trIdDomestic, appKey, appSecret, accessToken, sym);
             prices[sym] = result.price;
             if (result.error) errors[sym] = result.error;
           }
@@ -336,7 +499,7 @@ Deno.serve(async (req) => {
           prices[symbols[0]] = firstResult.price;
           if (firstResult.error) errors[symbols[0]] = firstResult.error;
           for (let i = 1; i < symbols.length; i++) {
-            const result = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, symbols[i]);
+            const result = await fetchOnePrice(base, trIdDomestic, appKey, appSecret, accessToken, symbols[i]);
             prices[symbols[i]] = result.price;
             if (result.error) errors[symbols[i]] = result.error;
           }
@@ -346,10 +509,10 @@ Deno.serve(async (req) => {
         return jsonResponse(resp, 200);
       }
 
-      const result = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, symbol);
+      const result = await fetchOnePrice(base, trIdDomestic, appKey, appSecret, accessToken, symbol);
       if (result.tokenExpired) {
         accessToken = await forceRefreshToken(base, appKey, appSecret, demo);
-        const retry = await fetchOnePrice(base, trId, appKey, appSecret, accessToken, symbol);
+        const retry = await fetchOnePrice(base, trIdDomestic, appKey, appSecret, accessToken, symbol);
         if (retry.price === null) {
           return jsonResponse({ error: retry.error ?? "KIS price unavailable after token refresh" }, 502);
         }

@@ -8,6 +8,12 @@ const marketOptions: SelectOption[] = [
   { value: "US", label: "미국 (US)" },
 ];
 
+const exchangeOptions: SelectOption[] = [
+  { value: "NAS", label: "Nasdaq (NAS)" },
+  { value: "NYS", label: "NYSE (NYS)" },
+  { value: "AMS", label: "AMEX (AMS)" },
+];
+
 export interface StockFormProps {
   initialData?: StockHolding | null;
   onSuccess?: () => void;
@@ -17,6 +23,9 @@ export function StockForm({ initialData, onSuccess }: StockFormProps) {
   const isEdit = Boolean(initialData?.id);
   const [symbol, setSymbol] = useState<string>(initialData?.symbol ?? "");
   const [market, setMarket] = useState<"KR" | "US">(initialData?.market ?? "KR");
+  const [exchange, setExchange] = useState<string>(
+    (initialData as { exchange?: string | null })?.exchange ?? "NAS"
+  );
   const [name, setName] = useState<string>(initialData?.name ?? "");
   const [quantity, setQuantity] = useState<string>(initialData?.quantity != null ? String(initialData.quantity) : "");
   const [averageBuyPrice, setAverageBuyPrice] = useState<string>(
@@ -54,6 +63,7 @@ export function StockForm({ initialData, onSuccess }: StockFormProps) {
           payload: {
             symbol: symbol.trim(),
             market,
+            exchange: market === "US" ? exchange : null,
             name: name.trim() || null,
             quantity: quantityNum,
             average_buy_price: averageNum,
@@ -64,6 +74,7 @@ export function StockForm({ initialData, onSuccess }: StockFormProps) {
         await createStockHolding.mutateAsync({
           symbol: symbol.trim(),
           market,
+          exchange: market === "US" ? exchange : null,
           name: name.trim() || null,
           quantity: quantityNum,
           average_buy_price: averageNum,
@@ -117,6 +128,19 @@ export function StockForm({ initialData, onSuccess }: StockFormProps) {
           placeholder="시장 선택"
         />
       </div>
+      {market === "US" && (
+        <div className="form-field">
+          <label htmlFor="stock-exchange" className="form-label">
+            거래소 *
+          </label>
+          <Select
+            options={exchangeOptions}
+            value={exchange}
+            onChange={(v) => setExchange(v)}
+            placeholder="거래소 선택"
+          />
+        </div>
+      )}
       <div className="form-field">
         <label htmlFor="stock-name" className="form-label">
           종목명 (선택)

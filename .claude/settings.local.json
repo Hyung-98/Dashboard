@@ -1,6 +1,13 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__KIS__search_overseas_stock_api",
+      "mcp__KIS__search_domestic_stock_api",
+      "mcp__KIS__search_etfetn_api"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "supabase"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
