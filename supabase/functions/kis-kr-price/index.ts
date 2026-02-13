@@ -17,11 +17,21 @@ const TR_ID_DEMO_DOMESTIC = "VHKST01010100";
 const TR_ID_REAL_OVERSEAS = "HHDFS00000300";
 const TR_ID_DEMO_OVERSEAS = "HHDFSCNT0200";
 
-/** KIS expects 6-digit 종목코드; pad with leading zeros. */
+/**
+ * KIS expects 6-character 종목코드.
+ * Codes like "0072R0" (ETF/ETN with letter classification) are valid and sent as-is.
+ * For pure numeric codes, pad with leading zeros to 6 digits.
+ */
 function toSixDigitSymbol(s: string): string {
-  const t = s.replace(/\D/g, "");
-  if (t.length >= 6) return t.slice(0, 6);
-  return t.padStart(6, "0");
+  const code = s.trim().toUpperCase();
+
+  // Already 6 characters (may include letters like "0072R0") — use as-is
+  if (code.length === 6) return code;
+
+  // Extract digits and pad to 6
+  const digits = code.replace(/\D/g, "");
+  if (digits.length >= 6) return digits.slice(0, 6);
+  return digits.padStart(6, "0");
 }
 
 /** Get exchange code for US stocks. Defaults to NAS (Nasdaq). */

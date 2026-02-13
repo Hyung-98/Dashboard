@@ -135,7 +135,7 @@ export function PortfolioAllocationCharts({
           ) : currentAllocationData.length > 0 ? (
             <ReactECharts
               option={currentOption}
-              style={{ height: 280, width: "100%" }}
+              style={{ height: 400, width: "100%" }}
               opts={{ renderer: "svg" }}
             />
           ) : (
@@ -163,7 +163,7 @@ export function PortfolioAllocationCharts({
           ) : targetAllocationData.length > 0 ? (
             <ReactECharts
               option={targetOption}
-              style={{ height: 280, width: "100%" }}
+              style={{ height: 400, width: "100%" }}
               opts={{ renderer: "svg" }}
             />
           ) : (
