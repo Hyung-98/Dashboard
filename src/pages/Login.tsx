@@ -167,9 +167,7 @@ export function Login() {
       // 이메일 링크가 접속 가능한 URL로 가도록 함 (localhost는 다른 기기/서버 꺼짐 시 연결 불가)
       // HashRouter의 #/ 를 포함하면 Supabase가 #access_token=... 을 붙일 때
       // #/#access_token=... 이 되어 토큰 파싱 실패. 해시 없이 origin만 사용.
-      const appOrigin = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, "");
-      const path = window.location.pathname || "/";
-      const redirectTo = path !== "/" ? `${appOrigin}${path}` : appOrigin;
+      const redirectTo = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, "");
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
         redirectTo,
