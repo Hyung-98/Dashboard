@@ -26,6 +26,9 @@ TypeScript, React, TanStack Query, Apache ECharts, Supabase로 구현한 지출�
 | 백엔드    | Supabase (Auth + Database) |
 | 라우팅    | React Router v6            |
 | UI 문서   | Storybook 8                |
+| 드래그앤드롭 | dnd-kit                 |
+| 애니메이션 | lottie-react              |
+| E2E 테스트 | Playwright               |
 
 ## 시작하기
 
@@ -203,7 +206,9 @@ KR 종목 현재가를 사용하려면 [한국투자증권 KIS API](https://apip
 | `20250205100000_recurrence_expenses_incomes.sql`  | 지출/수입 반복 설정                   |
 | `20250205110000_savings_goals.sql`                | savings_goals (저축 목표)             |
 | `20250205120000_stock_transactions.sql`           | stock_transactions (주식 거래 내역)   |
-| *(신규)* `portfolio_targets`                      | portfolio_targets (포트폴리오 목표 비중) |
+| `20260211161500_portfolio_targets.sql`            | portfolio_targets (포트폴리오 목표 비중) |
+| `20260212161300_fix_categories_rls.sql`           | categories RLS 정책 수정              |
+| `20260212161700_add_exchange_column.sql`          | stock_holdings exchange 컬럼 추가     |
 
 **테이블**: categories(카테고리), expenses(지출), budgets(예산), assets(자산), incomes(수입), stock_holdings(주식 보유), savings_goals(저축 목표), stock_transactions(주식 거래), portfolio_targets(포트폴리오 목표 비중).
 RLS로 `auth.uid()` = `user_id` 기준 사용자별 데이터 격리.
@@ -256,6 +261,9 @@ npx supabase db push
 | **인증**            | 로그인/회원가입, 한글 에러 메시지, 비밀번호 강도·확인·이메일 중복 확인·약관 동의, 익명 로그인                                             |
 | **복합 필터 + URL** | `useExpenseFilters` / `useIncomeFilters`로 날짜·카테고리·금액 필터를 URL 쿼리와 동기화                                                    |
 | **주식**            | 보유 종목(종목코드·시장 KR/US·수량·평균매수가) 등록, 미국 종목 시세(Alpha Vantage) 연동, 평가금액·손익 표시, 거래 내역, 포트폴리오 리밸런싱 차트(현재 비중·목표 비중 도넛 차트), 대시보드 요약·자산 파이 반영 |
+| **리포트**          | 기간별 수입/지출 요약 및 차트, 지출 내역 CSV 내보내기                                                                                    |
+| **테마**            | 라이트/다크 모드 전환, localStorage에 설정 저장 (`src/contexts/ThemeContext.tsx`)                                                         |
+| **설정**            | 예산 초과 알림, 기본 차트 기간, 테마 선택 — localStorage 저장                                                                            |
 | **공통 UI**         | Table, Modal, Select, DateRangePicker, Skeleton — Storybook 스토리로 문서화                                                               |
 | **에러 처리**       | Error Boundary, API 실패 시 인라인 한글 메시지                                                                                            |
 | **스켈레톤**        | 로딩 시 TableSkeleton, CardSkeleton                                                                                                       |
@@ -268,12 +276,12 @@ npx supabase db push
 | **2. CI** | GitHub Actions로 `main`/`develop` 푸시·PR 시 품질 검사만 수행. Node 20, `npm ci` → `lint` → `build` → `test:run`. Amplify 배포는 그대로 두고 CI는 검증 전용. | `.github/workflows/ci.yml` |
 | **3. Form 스토리** | Storybook preview에 `QueryClientProvider` + `MemoryRouter` 전역 decorator. `QueryClient`의 `defaultOptions.queries.queryFn`으로 categories/budgets mock 반환해 API 없이 폼 렌더. | `.storybook/preview.tsx`, `.storybook/mocks.ts`, `src/components/forms/ExpenseForm.stories.tsx`, `IncomeForm.stories.tsx`, `SavingsGoalForm.stories.tsx`, `StockTransactionForm.stories.tsx` (빈 폼 / 수정용 initialData). `npm run storybook` |
 | **4. 에러 모니터링 (Sentry)** | 선택. `VITE_SENTRY_DSN` 설정 시에만 `main.tsx`에서 `Sentry.init()`. `ErrorBoundary`의 `componentDidCatch`에서 `Sentry.captureException(error)` 호출. | `.env`에 `VITE_SENTRY_DSN` 추가 시 활성화. `.env.example`·`src/vite-env.d.ts`에 설명·타입 |
+| **7. E2E 테스트 (Playwright)** | Playwright로 주요 사용자 흐름 검증. 앱 로드, 지출 페이지 이동, 리포트 페이지 이동 시나리오 포함. 익명 로그인이 불가한 환경에서는 자동 스킵. | `e2e/app.spec.ts`. `npm run e2e` (헤드리스), `npm run e2e:ui` (UI 모드) |
 | **5. 접근성 (a11y)** | Storybook에 `@storybook/addon-a11y` 추가. Modal/Select/DateRangePicker 등 UI 스토리에서 Accessibility 패널로 경고 확인. | `.storybook/main.ts` addons. 스토리 실행 후 "Accessibility" 탭 |
 | **6. 번들 분석** | `rollup-plugin-visualizer`를 `ANALYZE` 환경 변수로만 활성화. 분석 시 `stats.html`(gzip 크기 포함) 생성. | `npm run build:analyze` → 프로젝트 루트 `stats.html`. `.gitignore`에 `stats.html` 포함 |
 
 **미구현/선택 사항**
 
-- E2E(Playwright/Cypress): 플랜에서 선택. 단위/CI 안정화 후 "로그인 → 지출/수입 입력 → 대시보드" 등 한 플로우 추가 가능.
 - Sentry 소스맵 업로드: 배포 빌드 시 Vite 플러그인 또는 CLI로 업로드 설정은 Sentry 문서 참고.
 - Supabase 보안 어드바이저: 코드 변경 없이 **Supabase Dashboard → Advisors**에서 수동 확인·조치.
 - Dependabot/Renovate, PWA, i18n: 플랜 범위 밖. 필요 시 별도 진행.
@@ -283,6 +291,8 @@ npx supabase db push
 ```
 src/
   api/           # queryKeys, expenses, budgets, assets, stocks, stockPrice, stockTransactions, portfolioTargets, categories, incomes, savingsGoals, hooks
+  assets/
+    lottie/      # CatLoader.json, ReactLogo.json (Lottie 애니메이션)
   components/
     ui/          # Table, Modal, Select, DateRangePicker, Skeleton (+ .stories)
     forms/       # AssetForm, BudgetForm, CategoryForm, ExpenseForm, IncomeForm, StockForm, StockTransactionForm, SavingsGoalForm, PortfolioTargetForm
@@ -290,11 +300,13 @@ src/
     AuthInit.tsx
     ErrorBoundary.tsx
     Layout.tsx
+  contexts/      # ThemeContext.tsx (라이트/다크 테마)
   hooks/         # useExpenseFilters, useIncomeFilters
-  lib/           # supabase.ts, authErrors.ts
-  pages/         # Dashboard, Expenses, Budgets, Assets, Stocks, Categories, Incomes, Login, Settings, SavingsGoals
+  lib/           # supabase.ts, authErrors.ts, csvExport.ts, settings.ts, toSixDigitSymbol.test.ts
+  pages/         # Dashboard, Expenses, Budgets, Assets, Stocks, Categories, Incomes, Login, Settings, SavingsGoals, Report
   types/         # database, domain, filters, api
   App.tsx, main.tsx
+e2e/             # app.spec.ts (Playwright E2E 테스트)
 ```
 
 ## 라이선스
