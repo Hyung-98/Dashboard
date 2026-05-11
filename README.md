@@ -7,7 +7,7 @@ TypeScript, React, TanStack Query, Apache ECharts, Supabase로 구현한 지출�
 - [기술 스택](#기술-스택)
 - [시작하기](#시작하기)
 - [환경 변수](#환경-변수)
-- [배포 (Netlify)](#배포-netlify)
+- [배포 (Cloudflare Pages)](#배포-cloudflare-pages)
 - [로컬 개발 시 주의사항](#로컬-개발-시-주의사항)
 - [Supabase](#supabase)
 - [주요 기능](#주요-기능)
@@ -70,14 +70,14 @@ npm run build:analyze
 | `MOK_KIS_APP_KEY`            | (선택) 한국투자증권 KIS API 모의투자 앱키                                      |
 | `MOK_KIS_APP_SECRET`         | (선택) 한국투자증권 KIS API 모의투자 앱시크릿. 백엔드에서만 사용 권장          |
 
-## 배포 (Netlify)
+## 배포 (Cloudflare Pages)
 
-1. **GitHub 연결** — Netlify Dashboard → Add new site → Import an existing project → 이 저장소 연결 후 브랜치(예: `main`) 선택.
-2. **빌드** — Build command: `npm run build`, Publish directory: `dist`.
-3. **SPA 라우팅** — `public/_redirects`에 `/* /index.html 200` 규칙이 포함되어 있어 새로고침 시 404가 발생하지 않습니다. Netlify가 빌드 산출물의 `_redirects`를 자동으로 적용합니다.
-4. **HTTP 헤더(CSP)** — `public/_headers`에 CSP·HSTS·X-Frame-Options 등이 정의되어 있으며, Netlify가 빌드 시 자동으로 적용합니다. 별도 설정이 필요 없습니다.
-5. **환경 변수** — Netlify Dashboard → Site configuration → Environment variables에서 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 추가.
-6. **배포** — Deploy site. 커스텀 도메인은 Domain management에서 설정.
+1. **GitHub 연결** — Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git → 이 저장소 연결 후 브랜치(예: `main`) 선택.
+2. **빌드** — Framework preset: `None`. Build command: `npm run build`, Build output directory: `dist`.
+3. **SPA 라우팅** — `public/_redirects`에 `/* /index.html 200` 규칙이 포함되어 있어 새로고침 시 404가 발생하지 않습니다. Cloudflare Pages가 빌드 산출물의 `_redirects`를 자동으로 적용합니다.
+4. **HTTP 헤더(CSP)** — `public/_headers`에 CSP·HSTS·X-Frame-Options 등이 정의되어 있으며, Cloudflare Pages가 빌드 시 자동으로 적용합니다. 별도 설정이 필요 없습니다.
+5. **환경 변수** — Cloudflare Dashboard → Pages 프로젝트 → Settings → Environment variables에서 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 추가 (Production·Preview 각각 설정).
+6. **배포** — Save and Deploy. 커스텀 도메인은 Custom domains에서 설정.
 
 ### 배포 후 사용하기 (KR 주식·DB·Auth)
 
@@ -87,12 +87,12 @@ npm run build:analyze
 | ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | Edge Function 배포    | `npx supabase functions deploy kis-kr-price` (프로젝트 연결 후 한 번)                                                                                                                                                           |
 | 2    | Edge Function Secrets | Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 (모의투자 시 `MOK_KIS_APP_KEY`, `MOK_KIS_APP_SECRET` 추가)                                                  |
-| 3    | 프론트엔드 환경 변수  | Netlify Dashboard → Site configuration → Environment variables에서 **클라우드** Supabase 값 사용: `VITE_SUPABASE_URL=https://<프로젝트_REF>.supabase.co`, `VITE_SUPABASE_ANON_KEY=<클라우드_anon_key>` (Dashboard → Project settings → API에서 확인) |
+| 3    | 프론트엔드 환경 변수  | Cloudflare Dashboard → Pages → Settings → Environment variables에서 **클라우드** Supabase 값 사용: `VITE_SUPABASE_URL=https://<프로젝트_REF>.supabase.co`, `VITE_SUPABASE_ANON_KEY=<클라우드_anon_key>` (Dashboard → Project settings → API에서 확인) |
 | 4    | DB 스키마             | 원격 DB에 마이그레이션 적용: `npx supabase link --project-ref <REF>` 후 `npx supabase db push`                                                                                                                                  |
 | 5    | CAPTCHA 설정 (권장)    | 배포 시 봇/남용 방지: [Cloudflare Dashboard](https://dash.cloudflare.com/)에서 Turnstile Site Key 발급 → 배포 환경 변수에 `VITE_CAPTCHA_SITE_KEY`와 `VITE_CAPTCHA_ENABLED=true` 설정 → [Supabase Dashboard](https://supabase.com/dashboard/project/_/auth/protection) → Authentication → Bot and Abuse Protection에서 CAPTCHA 활성화 및 Secret Key 설정 |
 | 6    | Auth Redirect URLs     | 비밀번호 찾기·이메일 로그인 링크용: Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL 추가. 예: `https://your-site.netlify.app/#/` (HashRouter이므로 끝에 `/#/` 포함). `VITE_APP_URL`을 쓰면 해당 값과 동일하게 추가. |
 
-- **로컬에서만** 개발할 때는 `.env.local`에 로컬 URL(`http://127.0.0.1:54321`)을 두고, **배포 빌드**할 때는 Netlify 환경 변수에 클라우드 URL을 넣으면 됩니다. (`.env.local`은 빌드 서버에 없으므로 Netlify에 반드시 설정)
+- **로컬에서만** 개발할 때는 `.env.local`에 로컬 URL(`http://127.0.0.1:54321`)을 두고, **배포 빌드**할 때는 Cloudflare Pages 환경 변수에 클라우드 URL을 넣으면 됩니다. (`.env.local`은 빌드 서버에 없으므로 Cloudflare Pages에 반드시 설정)
 - KR 종목 현재가가 안 나오면: Edge Function 배포 여부, Secrets 등록, 그리고 프론트가 **클라우드** Supabase URL을 쓰는지 확인하세요.
 
 ### 로컬 개발 시 주의사항
@@ -141,7 +141,7 @@ npm run build:analyze
 
 6. **주의사항**
    - `.env.local`은 Git에 커밋하지 마세요 (`.gitignore`에 포함되어야 함)
-   - 배포 빌드 시에는 `.env.local`이 사용되지 않으므로 Netlify 환경 변수에 별도로 설정해야 합니다
+   - 배포 빌드 시에는 `.env.local`이 사용되지 않으므로 Cloudflare Pages 환경 변수에 별도로 설정해야 합니다
    - 로컬과 클라우드 Supabase는 별개의 데이터베이스이므로 데이터가 공유되지 않습니다
    - 로컬에서 테스트한 후 클라우드에도 동일한 마이그레이션을 적용해야 합니다
 
@@ -151,7 +151,7 @@ npm run build:analyze
 | --------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **하위 경로에서 404**                   | `_redirects` 파일이 빌드 산출물에 없으면 서버가 경로를 찾지 못함  | `public/_redirects`에 `/* /index.html 200`이 있는지 확인. Netlify는 `dist/_redirects`를 자동 적용.                                                                                              |
 | **Sandbox / allow-scripts 콘솔 에러**   | Turnstile(CAPTCHA) iframe이 CSP에 의해 스크립트 실행 차단         | `public/_headers`의 `frame-src`·`script-src`에 `https://challenges.cloudflare.com`가 포함되어 있는지 확인. 파일이 `dist/`에 복사되어 Netlify에 배포되어야 합니다.                               |
-| **비밀번호 찾기 시 `/auth/v1/recover` 500** | 비밀번호 재설정 링크의 redirect URL이 Supabase 허용 목록에 없음   | Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL을 **정확히** 추가. 예: `https://your-site.netlify.app/#/` (HashRouter이므로 `/#/` 포함). 배포 도메인이 다르면 해당 URL도 추가. |
+| **비밀번호 찾기 시 `/auth/v1/recover` 500** | 비밀번호 재설정 링크의 redirect URL이 Supabase 허용 목록에 없음   | Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL을 **정확히** 추가. 예: `https://your-project.pages.dev/#/` (HashRouter이므로 `/#/` 포함). 커스텀 도메인을 쓰면 해당 URL도 추가. |
 | **`kis-kr-price` 502 (Bad Gateway)**    | Edge Function 미배포 또는 Secrets 미설정                          | ① `npx supabase functions deploy kis-kr-price` 실행 ② Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 후 재배포 없이 반영됨 |
 
 **502가 계속 날 때** — 원인 확인 순서:
