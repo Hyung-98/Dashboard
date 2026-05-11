@@ -7,7 +7,7 @@ TypeScript, React, TanStack Query, Apache ECharts, Supabase로 구현한 지출�
 - [기술 스택](#기술-스택)
 - [시작하기](#시작하기)
 - [환경 변수](#환경-변수)
-- [배포 (AWS Amplify)](#배포-aws-amplify)
+- [배포 (Cloudflare Pages)](#배포-cloudflare-pages)
 - [로컬 개발 시 주의사항](#로컬-개발-시-주의사항)
 - [Supabase](#supabase)
 - [주요 기능](#주요-기능)
@@ -26,6 +26,9 @@ TypeScript, React, TanStack Query, Apache ECharts, Supabase로 구현한 지출�
 | 백엔드    | Supabase (Auth + Database) |
 | 라우팅    | React Router v6            |
 | UI 문서   | Storybook 8                |
+| 드래그앤드롭 | dnd-kit                 |
+| 애니메이션 | lottie-react              |
+| E2E 테스트 | Playwright               |
 
 ## 시작하기
 
@@ -67,15 +70,14 @@ npm run build:analyze
 | `MOK_KIS_APP_KEY`            | (선택) 한국투자증권 KIS API 모의투자 앱키                                      |
 | `MOK_KIS_APP_SECRET`         | (선택) 한국투자증권 KIS API 모의투자 앱시크릿. 백엔드에서만 사용 권장          |
 
-## 배포 (AWS Amplify)
+## 배포 (Cloudflare Pages)
 
-1. **GitHub 연결** — Amplify Console → New app → Host web app → 이 저장소 연결 후 브랜치(예: `main`) 선택.
-2. **빌드** — 루트의 `amplify.yml` 사용. Build: `npm run build`, Output: `dist`.
-3. **SPA 라우팅** — 이 프로젝트는 **HashRouter**를 사용합니다. URL이 `/#/stocks`, `/#/expenses` 형태이므로 서버는 항상 `/`만 받고, **Amplify에서 별도 Rewrites and redirects 설정이 필요 없습니다**. 새로고침해도 404가 나지 않습니다.
-4. **환경 변수** — Build-time에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 추가.
-5. **배포** — Save and deploy. 커스텀 도메인은 Hosting → Domain management에서 설정.
-
-(이전에 BrowserRouter + Amplify SPA 리라이트를 쓰던 경우, 리라이트가 적용되지 않아 하위 경로 새로고침 시 404가 나는 이슈가 있어 HashRouter로 전환했습니다.)
+1. **GitHub 연결** — Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git → 이 저장소 연결 후 브랜치(예: `main`) 선택.
+2. **빌드** — Framework preset: `None`. Build command: `npm run build`, Build output directory: `dist`.
+3. **SPA 라우팅** — `public/_redirects`에 `/* /index.html 200` 규칙이 포함되어 있어 새로고침 시 404가 발생하지 않습니다. Cloudflare Pages가 빌드 산출물의 `_redirects`를 자동으로 적용합니다.
+4. **HTTP 헤더(CSP)** — `public/_headers`에 CSP·HSTS·X-Frame-Options 등이 정의되어 있으며, Cloudflare Pages가 빌드 시 자동으로 적용합니다. 별도 설정이 필요 없습니다.
+5. **환경 변수** — Cloudflare Dashboard → Pages 프로젝트 → Settings → Environment variables에서 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` 추가 (Production·Preview 각각 설정).
+6. **배포** — Save and Deploy. 커스텀 도메인은 Custom domains에서 설정.
 
 ### 배포 후 사용하기 (KR 주식·DB·Auth)
 
@@ -85,12 +87,12 @@ npm run build:analyze
 | ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | Edge Function 배포    | `npx supabase functions deploy kis-kr-price` (프로젝트 연결 후 한 번)                                                                                                                                                           |
 | 2    | Edge Function Secrets | Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 (모의투자 시 `MOK_KIS_APP_KEY`, `MOK_KIS_APP_SECRET` 추가)                                                  |
-| 3    | 프론트엔드 환경 변수  | Amplify(또는 사용 중인 호스팅) Build 설정에서 **클라우드** Supabase 값 사용: `VITE_SUPABASE_URL=https://<프로젝트_REF>.supabase.co`, `VITE_SUPABASE_ANON_KEY=<클라우드_anon_key>` (Dashboard → Project settings → API에서 확인) |
+| 3    | 프론트엔드 환경 변수  | Cloudflare Dashboard → Pages → Settings → Environment variables에서 **클라우드** Supabase 값 사용: `VITE_SUPABASE_URL=https://<프로젝트_REF>.supabase.co`, `VITE_SUPABASE_ANON_KEY=<클라우드_anon_key>` (Dashboard → Project settings → API에서 확인) |
 | 4    | DB 스키마             | 원격 DB에 마이그레이션 적용: `npx supabase link --project-ref <REF>` 후 `npx supabase db push`                                                                                                                                  |
 | 5    | CAPTCHA 설정 (권장)    | 배포 시 봇/남용 방지: [Cloudflare Dashboard](https://dash.cloudflare.com/)에서 Turnstile Site Key 발급 → 배포 환경 변수에 `VITE_CAPTCHA_SITE_KEY`와 `VITE_CAPTCHA_ENABLED=true` 설정 → [Supabase Dashboard](https://supabase.com/dashboard/project/_/auth/protection) → Authentication → Bot and Abuse Protection에서 CAPTCHA 활성화 및 Secret Key 설정 |
-| 6    | Auth Redirect URLs     | 비밀번호 찾기·이메일 로그인 링크용: Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL 추가. 예: `https://main.xxxxx.amplifyapp.com/#/` (HashRouter이므로 끝에 `/#/` 포함). `VITE_APP_URL`을 쓰면 해당 값과 동일하게 추가. |
+| 6    | Auth Redirect URLs     | 비밀번호 찾기·이메일 로그인 링크용: Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL 추가. 예: `https://your-project.pages.dev/#/` (HashRouter이므로 끝에 `/#/` 포함). 커스텀 도메인을 쓰면 해당 URL도 추가. |
 
-- **로컬에서만** 개발할 때는 `.env.local`에 로컬 URL(`http://127.0.0.1:54321`)을 두고, **배포 빌드**할 때는 호스팅 쪽 환경 변수에 클라우드 URL을 넣으면 됩니다. (`.env.local`은 빌드 서버에 없으므로 Amplify 등에 반드시 설정)
+- **로컬에서만** 개발할 때는 `.env.local`에 로컬 URL(`http://127.0.0.1:54321`)을 두고, **배포 빌드**할 때는 Cloudflare Pages 환경 변수에 클라우드 URL을 넣으면 됩니다. (`.env.local`은 빌드 서버에 없으므로 Cloudflare Pages에 반드시 설정)
 - KR 종목 현재가가 안 나오면: Edge Function 배포 여부, Secrets 등록, 그리고 프론트가 **클라우드** Supabase URL을 쓰는지 확인하세요.
 
 ### 로컬 개발 시 주의사항
@@ -139,7 +141,7 @@ npm run build:analyze
 
 6. **주의사항**
    - `.env.local`은 Git에 커밋하지 마세요 (`.gitignore`에 포함되어야 함)
-   - 배포 빌드 시에는 `.env.local`이 사용되지 않으므로 호스팅 플랫폼(Amplify 등)에 환경 변수를 별도로 설정해야 합니다
+   - 배포 빌드 시에는 `.env.local`이 사용되지 않으므로 Cloudflare Pages 환경 변수에 별도로 설정해야 합니다
    - 로컬과 클라우드 Supabase는 별개의 데이터베이스이므로 데이터가 공유되지 않습니다
    - 로컬에서 테스트한 후 클라우드에도 동일한 마이그레이션을 적용해야 합니다
 
@@ -147,10 +149,9 @@ npm run build:analyze
 
 | 증상                                    | 원인                                                              | 조치                                                                                                                                                                                            |
 | --------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`/stocks/` 등 경로에서 404**          | (HashRouter 사용 시 해당 없음) 서버에 해당 경로 파일이 없으면 404 | 이 프로젝트는 HashRouter 사용으로 해결됨. 다른 호스팅에서 BrowserRouter 쓸 경우 해당 플랫폼의 SPA 리라이트 설정 필요.                                                                           |
-| **JS 로드 실패, MIME type "text/html"** | `/<*>` 리라이트가 .js/.css 요청까지 index.html로 보냄             | 기존 `/<*>` 규칙 삭제 또는 정적 파일 제외 규칙으로 교체. (이 프로젝트는 HashRouter라 Amplify 리라이트 불필요.)                                                                                  |
-| **Sandbox / allow-scripts 콘솔 에러**   | Turnstile(CAPTCHA) iframe이 CSP에 의해 스크립트 실행 차단         | 프로젝트 루트의 `customHttp.yml`이 Amplify에 적용되는지 확인. 적용되어 있으면 `frame-src`·`script-src`에 `https://challenges.cloudflare.com`가 포함됩니다. Amplify Console → Hosting → Custom headers에서도 동일하게 설정 가능. |
-| **비밀번호 찾기 시 `/auth/v1/recover` 500** | 비밀번호 재설정 링크의 redirect URL이 Supabase 허용 목록에 없음   | Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL을 **정확히** 추가. 예: `https://main.d3ctoqrfg8zs7q.amplifyapp.com/#/` (HashRouter이므로 `/#/` 포함). 배포 도메인이 다르면 해당 URL도 추가. |
+| **하위 경로에서 404**                   | `_redirects` 파일이 빌드 산출물에 없으면 서버가 경로를 찾지 못함  | `public/_redirects`에 `/* /index.html 200`이 있는지 확인. Cloudflare Pages는 `dist/_redirects`를 자동 적용.                                                                                     |
+| **Sandbox / allow-scripts 콘솔 에러**   | Turnstile(CAPTCHA) iframe이 CSP에 의해 스크립트 실행 차단         | `public/_headers`의 `frame-src`·`script-src`에 `https://challenges.cloudflare.com`가 포함되어 있는지 확인. 파일이 `dist/`에 복사되어 Cloudflare Pages에 배포되어야 합니다.                      |
+| **비밀번호 찾기 시 `/auth/v1/recover` 500** | 비밀번호 재설정 링크의 redirect URL이 Supabase 허용 목록에 없음   | Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**에 배포 URL을 **정확히** 추가. 예: `https://your-project.pages.dev/#/` (HashRouter이므로 `/#/` 포함). 커스텀 도메인을 쓰면 해당 URL도 추가. |
 | **`kis-kr-price` 502 (Bad Gateway)**    | Edge Function 미배포 또는 Secrets 미설정                          | ① `npx supabase functions deploy kis-kr-price` 실행 ② Supabase Dashboard → **Project settings** → **Edge Functions** → **Secrets**에 `KIS_APP_KEY`, `KIS_APP_SECRET` 등록 후 재배포 없이 반영됨 |
 
 **502가 계속 날 때** — 원인 확인 순서:
@@ -203,7 +204,9 @@ KR 종목 현재가를 사용하려면 [한국투자증권 KIS API](https://apip
 | `20250205100000_recurrence_expenses_incomes.sql`  | 지출/수입 반복 설정                   |
 | `20250205110000_savings_goals.sql`                | savings_goals (저축 목표)             |
 | `20250205120000_stock_transactions.sql`           | stock_transactions (주식 거래 내역)   |
-| *(신규)* `portfolio_targets`                      | portfolio_targets (포트폴리오 목표 비중) |
+| `20260211161500_portfolio_targets.sql`            | portfolio_targets (포트폴리오 목표 비중) |
+| `20260212161300_fix_categories_rls.sql`           | categories RLS 정책 수정              |
+| `20260212161700_add_exchange_column.sql`          | stock_holdings exchange 컬럼 추가     |
 
 **테이블**: categories(카테고리), expenses(지출), budgets(예산), assets(자산), incomes(수입), stock_holdings(주식 보유), savings_goals(저축 목표), stock_transactions(주식 거래), portfolio_targets(포트폴리오 목표 비중).
 RLS로 `auth.uid()` = `user_id` 기준 사용자별 데이터 격리.
@@ -256,6 +259,9 @@ npx supabase db push
 | **인증**            | 로그인/회원가입, 한글 에러 메시지, 비밀번호 강도·확인·이메일 중복 확인·약관 동의, 익명 로그인                                             |
 | **복합 필터 + URL** | `useExpenseFilters` / `useIncomeFilters`로 날짜·카테고리·금액 필터를 URL 쿼리와 동기화                                                    |
 | **주식**            | 보유 종목(종목코드·시장 KR/US·수량·평균매수가) 등록, 미국 종목 시세(Alpha Vantage) 연동, 평가금액·손익 표시, 거래 내역, 포트폴리오 리밸런싱 차트(현재 비중·목표 비중 도넛 차트), 대시보드 요약·자산 파이 반영 |
+| **리포트**          | 기간별 수입/지출 요약 및 차트, 지출 내역 CSV 내보내기                                                                                    |
+| **테마**            | 라이트/다크 모드 전환, localStorage에 설정 저장 (`src/contexts/ThemeContext.tsx`)                                                         |
+| **설정**            | 예산 초과 알림, 기본 차트 기간, 테마 선택 — localStorage 저장                                                                            |
 | **공통 UI**         | Table, Modal, Select, DateRangePicker, Skeleton — Storybook 스토리로 문서화                                                               |
 | **에러 처리**       | Error Boundary, API 실패 시 인라인 한글 메시지                                                                                            |
 | **스켈레톤**        | 로딩 시 TableSkeleton, CardSkeleton                                                                                                       |
@@ -265,15 +271,15 @@ npx supabase db push
 | 구분 | 구현 내용 | 산출물/사용법 |
 |------|-----------|----------------|
 | **1. 단위/통합 테스트** | Vitest + React Testing Library. `vite.config.ts`에 test 블록(jsdom, `@` alias, setup), `src/test/setup.ts`에서 `@testing-library/jest-dom` 로드. | `npm run test` (watch), `npm run test:run` (1회). `src/types/filters.test.ts`(parse/직렬화·경계값·숫자 파싱), `src/hooks/useExpenseFilters.test.tsx`(URL 동기화·setFilters) |
-| **2. CI** | GitHub Actions로 `main`/`develop` 푸시·PR 시 품질 검사만 수행. Node 20, `npm ci` → `lint` → `build` → `test:run`. Amplify 배포는 그대로 두고 CI는 검증 전용. | `.github/workflows/ci.yml` |
+| **2. CI** | GitHub Actions로 `main`/`develop` 푸시·PR 시 두 잡 실행. ① `quality`: Node 20, `npm ci` → `lint` → `build` → `test:run`. ② `e2e`: Playwright Chromium 설치 후 `npm run e2e` (VITE_SUPABASE_URL·ANON_KEY는 GitHub Secrets에서 주입). | `.github/workflows/ci.yml` |
 | **3. Form 스토리** | Storybook preview에 `QueryClientProvider` + `MemoryRouter` 전역 decorator. `QueryClient`의 `defaultOptions.queries.queryFn`으로 categories/budgets mock 반환해 API 없이 폼 렌더. | `.storybook/preview.tsx`, `.storybook/mocks.ts`, `src/components/forms/ExpenseForm.stories.tsx`, `IncomeForm.stories.tsx`, `SavingsGoalForm.stories.tsx`, `StockTransactionForm.stories.tsx` (빈 폼 / 수정용 initialData). `npm run storybook` |
 | **4. 에러 모니터링 (Sentry)** | 선택. `VITE_SENTRY_DSN` 설정 시에만 `main.tsx`에서 `Sentry.init()`. `ErrorBoundary`의 `componentDidCatch`에서 `Sentry.captureException(error)` 호출. | `.env`에 `VITE_SENTRY_DSN` 추가 시 활성화. `.env.example`·`src/vite-env.d.ts`에 설명·타입 |
+| **7. E2E 테스트 (Playwright)** | Playwright로 주요 사용자 흐름 검증. 앱 로드, 지출 페이지 이동, 리포트 페이지 이동 시나리오 포함. 익명 로그인이 불가한 환경에서는 자동 스킵. | `e2e/app.spec.ts`. `npm run e2e` (헤드리스), `npm run e2e:ui` (UI 모드) |
 | **5. 접근성 (a11y)** | Storybook에 `@storybook/addon-a11y` 추가. Modal/Select/DateRangePicker 등 UI 스토리에서 Accessibility 패널로 경고 확인. | `.storybook/main.ts` addons. 스토리 실행 후 "Accessibility" 탭 |
 | **6. 번들 분석** | `rollup-plugin-visualizer`를 `ANALYZE` 환경 변수로만 활성화. 분석 시 `stats.html`(gzip 크기 포함) 생성. | `npm run build:analyze` → 프로젝트 루트 `stats.html`. `.gitignore`에 `stats.html` 포함 |
 
 **미구현/선택 사항**
 
-- E2E(Playwright/Cypress): 플랜에서 선택. 단위/CI 안정화 후 "로그인 → 지출/수입 입력 → 대시보드" 등 한 플로우 추가 가능.
 - Sentry 소스맵 업로드: 배포 빌드 시 Vite 플러그인 또는 CLI로 업로드 설정은 Sentry 문서 참고.
 - Supabase 보안 어드바이저: 코드 변경 없이 **Supabase Dashboard → Advisors**에서 수동 확인·조치.
 - Dependabot/Renovate, PWA, i18n: 플랜 범위 밖. 필요 시 별도 진행.
@@ -283,6 +289,8 @@ npx supabase db push
 ```
 src/
   api/           # queryKeys, expenses, budgets, assets, stocks, stockPrice, stockTransactions, portfolioTargets, categories, incomes, savingsGoals, hooks
+  assets/
+    lottie/      # CatLoader.json, ReactLogo.json (Lottie 애니메이션)
   components/
     ui/          # Table, Modal, Select, DateRangePicker, Skeleton (+ .stories)
     forms/       # AssetForm, BudgetForm, CategoryForm, ExpenseForm, IncomeForm, StockForm, StockTransactionForm, SavingsGoalForm, PortfolioTargetForm
@@ -290,11 +298,13 @@ src/
     AuthInit.tsx
     ErrorBoundary.tsx
     Layout.tsx
+  contexts/      # ThemeContext.tsx (라이트/다크 테마)
   hooks/         # useExpenseFilters, useIncomeFilters
-  lib/           # supabase.ts, authErrors.ts
-  pages/         # Dashboard, Expenses, Budgets, Assets, Stocks, Categories, Incomes, Login, Settings, SavingsGoals
+  lib/           # supabase.ts, authErrors.ts, csvExport.ts, settings.ts, toSixDigitSymbol.test.ts
+  pages/         # Dashboard, Expenses, Budgets, Assets, Stocks, Categories, Incomes, Login, Settings, SavingsGoals, Report
   types/         # database, domain, filters, api
   App.tsx, main.tsx
+e2e/             # app.spec.ts (Playwright E2E 테스트)
 ```
 
 ## 라이선스
